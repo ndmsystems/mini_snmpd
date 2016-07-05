@@ -14,6 +14,7 @@
  */
 
 #include <sys/time.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <syslog.h>
 #include <string.h>
@@ -22,6 +23,8 @@
 #include <stdint.h>		/* intptr_t/uintptr_t */
 #include <errno.h>
 #include <time.h>
+#include <sys/types.h>
+#include <dirent.h>
 
 #include "mini_snmpd.h"
 
@@ -488,11 +491,57 @@ int mib_build(void)
 	char name[16];
 	size_t i;
 
+#if NDM
+	if ((g_ndmresp = ndm_core_request(g_ndmcore,
+			NDM_CORE_REQUEST_PARSE, NDM_CORE_MODE_CACHE, NULL,
+			"show system")) == NULL)
+	{
+		lprintf(LOG_ERR, "(%s:%d) ndm request failed: %s", __FILE__, __LINE__, strerror(errno));
+
+		return -1;
+	}
+
+	if (!ndm_core_response_is_ok(g_ndmresp)) {
+		lprintf(LOG_ERR, "(%s:%d) ndm response is invalid", __FILE__, __LINE__);
+
+		return -1;
+	} else
+	{
+		const struct ndm_xml_node_t* root = ndm_core_response_root(g_ndmresp);
+
+		if (root == NULL) {
+			lprintf(LOG_ERR, "(%s:%d) null ndm response", __FILE__, __LINE__);
+
+		} else {
+			if( ndm_xml_node_type(root) == NDM_XML_NODE_TYPE_ELEMENT )
+			{
+				if( !strcmp(ndm_xml_node_name(root), "response") )
+				{
+					const struct ndm_xml_node_t* node =
+						ndm_xml_node_first_child(root, NULL);
+
+					while (node != NULL) {
+						if( !strcmp(ndm_xml_node_name(node), "hostname") )
+						{
+							strncpy(hostname, ndm_xml_node_value(node), sizeof(hostname) - 2);
+							hostname[sizeof(hostname) - 1] = '\0';
+
+							break;
+						}
+						node = ndm_xml_node_next_sibling(node, NULL);
+					}
+				}
+			}
+		}
+	}
+	ndm_core_response_free(&g_ndmresp);
+#else
 	/* Determine some static values that are not known at compile-time */
 	if (gethostname(hostname, sizeof(hostname)) == -1)
 		hostname[0] = '\0';
 	else if (hostname[sizeof(hostname) - 1] != '\0')
 		hostname[sizeof(hostname) - 1] = '\0';
+#endif
 
 	/*
 	 * The system MIB: basic info about the host (SNMPv2-MIB.txt)
@@ -510,6 +559,273 @@ int mib_build(void)
 	 * The interface MIB: network interfaces (IF-MIB.txt)
 	 * Caution: on changes, adapt the corresponding mib_update() section too!
 	 */
+#ifdef NDM
+
+	g_interface_list_length = 0;
+
+	if ((g_ndmresp = ndm_core_request(g_ndmcore,
+			NDM_CORE_REQUEST_PARSE, NDM_CORE_MODE_CACHE, NULL,
+			"show interface")) == NULL)
+	{
+		lprintf(LOG_ERR, "(%s:%d) ndm request failed: %s", __FILE__, __LINE__, strerror(errno));
+		ndm_core_response_free(&g_ndmresp);
+
+		return -1;
+	}
+
+	if (!ndm_core_response_is_ok(g_ndmresp)) {
+		lprintf(LOG_ERR, "(%s:%d) ndm response is invalid", __FILE__, __LINE__);
+		ndm_core_response_free(&g_ndmresp);
+
+		return -1;
+	} else
+	{
+		const struct ndm_xml_node_t* root = ndm_core_response_root(g_ndmresp);
+
+		if (root == NULL) {
+			lprintf(LOG_ERR, "(%s:%d) null ndm response", __FILE__, __LINE__);
+			ndm_core_response_free(&g_ndmresp);
+
+			return -1;
+		} else {
+			if( ndm_xml_node_type(root) == NDM_XML_NODE_TYPE_ELEMENT )
+			{
+				if( !strcmp(ndm_xml_node_name(root), "response") )
+				{
+					const struct ndm_xml_node_t* node =
+						ndm_xml_node_first_child(root, NULL);
+
+					while (node != NULL) {
+						if( !strcmp(ndm_xml_node_name(node), "interface") )
+						{
+							g_interface_list_length++;
+
+							if( ndm_xml_node_type(node) == NDM_XML_NODE_TYPE_ELEMENT )
+							{
+								const struct ndm_xml_node_t* cnode =
+									ndm_xml_node_first_child(node, NULL);
+								int has_mac = 0;
+								size_t j = g_interface_list_length - 1;
+								g_interface_mtu[j] = NDM_MIN_MTU_;
+
+								while (cnode != NULL) {
+									if( !strcmp(ndm_xml_node_name(cnode), "id") )
+									{
+										g_interface_list[j] =
+											strdup(ndm_xml_node_value(cnode));
+									}
+
+									if( !strcmp(ndm_xml_node_name(cnode), "type") )
+									{
+										if( !strcmp(ndm_xml_node_value(cnode), "FastEthernet") ||
+											!strcmp(ndm_xml_node_value(cnode), "GigabitEthernet") ||
+											!strcmp(ndm_xml_node_value(cnode), "Port") ||
+											!strcmp(ndm_xml_node_value(cnode), "AsixEthernet") ||
+											!strcmp(ndm_xml_node_value(cnode), "Davicom") ||
+											!strcmp(ndm_xml_node_value(cnode), "UsbLte") ||
+											!strcmp(ndm_xml_node_value(cnode), "YotaOne") ||
+											!strcmp(ndm_xml_node_value(cnode), "CdcEthernet") )
+										{
+											g_interface_type[j] = 6; // ethernetCsmacd(6),
+
+											if( !strcmp(ndm_xml_node_value(cnode), "Port") )
+											{
+												g_interface_mtu[j] = NDM_ETH_MTU_;
+											}
+
+										} else
+										if( !strcmp(ndm_xml_node_value(cnode), "L2TP") ||
+											!strcmp(ndm_xml_node_value(cnode), "PPTP") || 
+											!strcmp(ndm_xml_node_value(cnode), "PPPoE") ||
+											!strcmp(ndm_xml_node_value(cnode), "L2TPoverIPsec") )
+										{
+											g_interface_type[j] = 23; // ppp(23),
+										} else
+										if( !strcmp(ndm_xml_node_value(cnode), "WiMax") )
+										{
+											g_interface_type[j] = 237; // ieee80216WMAN (237),
+										} else
+										if( !strcmp(ndm_xml_node_value(cnode), "UsbDsl") ||
+											!strcmp(ndm_xml_node_value(cnode), "Adsl") )
+										{
+											g_interface_type[j] = 238; // adsl2plus (238),
+										} else
+										if( !strcmp(ndm_xml_node_value(cnode), "Bridge") )
+										{
+											g_interface_type[j] = 209; // bridge (209),
+										} else
+										if( !strcmp(ndm_xml_node_value(cnode), "Vlan") )
+										{
+											g_interface_type[j] = 135; // l2vlan (135),
+										} else
+										if( !strcmp(ndm_xml_node_value(cnode), "AccessPoint") )
+										{
+											g_interface_type[j] = 253; //capwapDot11Bss (253),
+										} else
+										{
+											g_interface_type[j] = 1; //other(1),
+										}
+									}
+
+									if( !strcmp(ndm_xml_node_name(cnode), "mtu") &&
+										g_interface_mtu[j] == NDM_MIN_MTU_ )
+									{
+										int imtu = atoi(ndm_xml_node_value(cnode));
+
+										if( imtu >= NDM_MIN_MTU_ && imtu <= NDM_MAX_MTU_ )
+										{
+											g_interface_mtu[j] = imtu;
+										}
+									}
+
+									if( !strcmp(ndm_xml_node_name(cnode), "mac") )
+									{
+										has_mac = 1;
+										g_interface_mac[j] = strdup(ndm_xml_node_value(cnode));
+									}
+
+									cnode = ndm_xml_node_next_sibling(cnode, NULL);
+								}
+
+								if( has_mac == 0 )
+								{
+									g_interface_mac[j] = strdup(NDM_EMPTY_MAC_);
+								}
+							}
+						}
+						node = ndm_xml_node_next_sibling(node, NULL);
+					}
+				}
+			}
+		}
+	}
+	ndm_core_response_free(&g_ndmresp);
+
+	if( g_interface_list_length == 0 ) {
+		lprintf(LOG_ERR, "unable to acquire any interface");
+
+		return -1;
+	}
+
+	lprintf(LOG_INFO, "build IF-MIB for %d interfaces", g_interface_list_length);
+
+	if (mib_build_entry(&m_if_1_oid, 1, 0, BER_TYPE_INTEGER, (const void *)(intptr_t)g_interface_list_length) == -1)
+		return -1;
+
+	/* ifIndex -- XXX: Should be system ifindex! */
+	for (i = 0; i < g_interface_list_length; i++) {
+		if (mib_build_entry(&m_if_2_oid, 1, i + 1, BER_TYPE_INTEGER, (const void *)(intptr_t)(i + 1)) == -1)
+			return -1;
+	}
+
+	/* ifDescription */
+	for (i = 0; i < g_interface_list_length; i++) {
+		if (mib_build_entry(&m_if_2_oid, 2, i + 1, BER_TYPE_OCTET_STRING, g_interface_list[i]) == -1)
+			return -1;
+	}
+
+	/* ifType: ENUM  */
+	for (i = 0; i < g_interface_list_length; i++) {
+		if (mib_build_entry(&m_if_2_oid, 3, i + 1, BER_TYPE_INTEGER, (const void *)(intptr_t)g_interface_type[i]) == -1)
+			return -1;
+	}
+
+	/* ifMtu */
+	for (i = 0; i < g_interface_list_length; i++) {
+		if (mib_build_entry(&m_if_2_oid, 4, i + 1, BER_TYPE_INTEGER, (const void *)(intptr_t)g_interface_mtu[i]) == -1)
+			return -1;
+	}
+
+	/* ifSpeed (in bps) */
+	for (i = 0; i < g_interface_list_length; i++) {
+		if( g_interface_type[i] == 6 /* ethernet */ )
+		{
+			/* 100 Mbps by default */
+			if (mib_build_entry(&m_if_2_oid, 5, i + 1, BER_TYPE_GAUGE, (const void *)(intptr_t)100000000) == -1)
+				return -1;
+		} else
+		if( g_interface_type[i] == 23 /* ppp */ ||
+			g_interface_type[i] == 237 /* wimax */ ||
+			g_interface_type[i] == 238 /* adsl */ ||
+			g_interface_type[i] == 209 /* bridge */ ||
+			g_interface_type[i] == 135 /* vlan */ ||
+			g_interface_type[i] == 253 /* accesspoint */ ||
+			g_interface_type[i] == 1 /* other */ )
+		{
+			/* unspecified */
+			if (mib_build_entry(&m_if_2_oid, 5, i + 1, BER_TYPE_GAUGE, (const void *)(intptr_t)0) == -1)
+				return -1;
+		} else
+		{
+			if (mib_build_entry(&m_if_2_oid, 5, i + 1, BER_TYPE_GAUGE, (const void *)(intptr_t)0) == -1)
+				return -1;
+		}
+	}
+
+	/* ifPhysAddress */
+	for (i = 0; i < g_interface_list_length; i++) {
+		unsigned char mac[7] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+		char *saveptr, *res, *ptr;
+		size_t j;
+
+		ptr = g_interface_mac[i];
+
+		j = 0;
+		while( (res = strtok_r(ptr, ":", &saveptr)) && (j < 6) )
+		{
+			ptr = NULL;
+			long int val = strtol(res, NULL, 16);
+
+			if( val > 255 )
+			{
+				lprintf(LOG_ERR, "incorrect mac address: %s", g_interface_mac[i]);
+			} else
+			{
+				mac[j] = val & 0xFF;
+				++j;
+			} 
+		}
+
+		if( j < 6 )
+		{
+			lprintf(LOG_ERR, "too short mac address: %s", g_interface_mac[i]);
+		}
+
+		if (mib_build_entry(&m_if_2_oid, 6, i + 1, BER_TYPE_OCTET_STRING, mac) == -1)
+			return -1;
+	}
+
+	/* ifAdminStatus: up(1), down(2), testing(3) */
+	for (i = 0; i < g_interface_list_length; i++) {
+		/* Down by default */
+		if (mib_build_entry(&m_if_2_oid, 7, i + 1, BER_TYPE_INTEGER, (const void *)(intptr_t)2) == -1)
+			return -1;
+	}
+
+	/* ifOperStatus: up(1), down(2), testing(3), unknown(4), dormant(5), notPresent(6), lowerLayerDown(7) */
+	for (i = 0; i < g_interface_list_length; i++) {
+		/* Down by default */
+		if (mib_build_entry(&m_if_2_oid, 8, i + 1, BER_TYPE_INTEGER, (const void *)(intptr_t)2) == -1)
+			return -1;
+	}
+
+	/* ifLastChange */
+	for (i = 0; i < g_interface_list_length; i++) {
+		if (mib_build_entry(&m_if_2_oid, 9, i + 1, BER_TYPE_TIME_TICKS, (const void *)(intptr_t)0) == -1)
+			return -1;
+	}
+
+	if (mib_build_entries(&m_if_2_oid, 10, 1, g_interface_list_length, BER_TYPE_COUNTER) == -1 ||
+	    mib_build_entries(&m_if_2_oid, 11, 1, g_interface_list_length, BER_TYPE_COUNTER) == -1 ||
+	    mib_build_entries(&m_if_2_oid, 13, 1, g_interface_list_length, BER_TYPE_COUNTER) == -1 ||
+	    mib_build_entries(&m_if_2_oid, 14, 1, g_interface_list_length, BER_TYPE_COUNTER) == -1 ||
+	    mib_build_entries(&m_if_2_oid, 16, 1, g_interface_list_length, BER_TYPE_COUNTER) == -1 ||
+	    mib_build_entries(&m_if_2_oid, 17, 1, g_interface_list_length, BER_TYPE_COUNTER) == -1 ||
+	    mib_build_entries(&m_if_2_oid, 19, 1, g_interface_list_length, BER_TYPE_COUNTER) == -1 ||
+	    mib_build_entries(&m_if_2_oid, 20, 1, g_interface_list_length, BER_TYPE_COUNTER) == -1)
+		return -1;
+
+#else
 	if (g_interface_list_length > 0) {
 		if (mib_build_entry(&m_if_1_oid, 1, 0, BER_TYPE_INTEGER, (const void *)(intptr_t)g_interface_list_length) == -1)
 			return -1;
@@ -580,6 +896,7 @@ int mib_build(void)
 		    mib_build_entries(&m_if_2_oid, 20, 1, g_interface_list_length, BER_TYPE_COUNTER) == -1)
 			return -1;
 	}
+#endif
 
 	/*
 	 * The host MIB: additional host info (HOST-RESOURCES-MIB.txt)
@@ -603,7 +920,47 @@ int mib_build(void)
 	 * The disk MIB: mounted partitions (UCD-SNMP-MIB.txt)
 	 * Caution: on changes, adapt the corresponding mib_update() section too!
 	 */
+
+#ifdef NDM
+	/* Dynamically populate mounted disks list */
+	g_disk_list_length = 0;
+
+	{
+		DIR* dirp = opendir(NDM_MOUNT_PATH_);
+
+		if( dirp != NULL )
+		{
+			struct dirent* dire = NULL;
+			while( (dire = readdir(dirp)) )
+			{
+				struct stat st;
+				char pathbuf[512];
+
+				if (dire->d_name[0] == '.') {
+					continue;
+				}
+
+				snprintf(pathbuf, sizeof(pathbuf), NDM_MOUNT_PATH_ "/%s/", dire->d_name);
+
+				if ( !stat(pathbuf, &st) )
+				{
+					if( S_ISDIR(st.st_mode) )
+					{
+						++g_disk_list_length;
+						g_disk_list[g_disk_list_length - 1] = strdup(pathbuf);
+					}
+				}
+			}
+
+			closedir(dirp);
+		}
+	}
+#endif
+
 	if (g_disk_list_length > 0) {
+
+		lprintf(LOG_INFO, "build UCD-SNMP-MIB for %d disks", g_disk_list_length);
+
 		for (i = 0; i < g_disk_list_length; i++) {
 			if (mib_build_entry(&m_disk_oid, 1, i + 1, BER_TYPE_INTEGER, (const void *)(intptr_t)(i + 1)) == -1)
 				return -1;
@@ -621,6 +978,7 @@ int mib_build(void)
 		    mib_build_entries(&m_disk_oid, 10, 1, g_disk_list_length, BER_TYPE_INTEGER) == -1)
 			return -1;
 	}
+
 
 	/*
 	 * The load MIB: CPU load averages (UCD-SNMP-MIB.txt)
@@ -703,11 +1061,37 @@ int mib_update(int full)
 	 */
 	if (full) {
 		if (g_interface_list_length > 0) {
+
 			get_netinfo(&u.netinfo);
+
+#ifdef NDM
+			for (i = 0; i < g_interface_list_length; i++) {
+				if (mib_update_entry(&m_if_2_oid, 4, i + 1, &pos, BER_TYPE_INTEGER, (const void *)(intptr_t)u.netinfo.mtu[i]) == -1)
+					return -1;
+			}
+
+			for (i = 0; i < g_interface_list_length; i++) {
+				if (mib_update_entry(&m_if_2_oid, 5, i + 1, &pos, BER_TYPE_GAUGE, (const void *)(intptr_t)u.netinfo.speed[i]) == -1)
+					return -1;
+			}
+
+			for (i = 0; i < g_interface_list_length; i++) {
+				if (mib_update_entry(&m_if_2_oid, 7, i + 1, &pos, BER_TYPE_INTEGER, (const void *)(intptr_t)u.netinfo.admin_status[i]) == -1)
+					return -1;
+			}
+#endif
+
 			for (i = 0; i < g_interface_list_length; i++) {
 				if (mib_update_entry(&m_if_2_oid, 8, i + 1, &pos, BER_TYPE_INTEGER, (const void *)(intptr_t)u.netinfo.status[i]) == -1)
 					return -1;
 			}
+
+#ifdef NDM
+			for (i = 0; i < g_interface_list_length; i++) {
+				if (mib_update_entry(&m_if_2_oid, 9, i + 1, &pos, BER_TYPE_TIME_TICKS, (const void *)(intptr_t)u.netinfo.last_change[i]) == -1)
+					return -1;
+			}
+#endif
 
 			for (i = 0; i < g_interface_list_length; i++) {
 				if (mib_update_entry(&m_if_2_oid, 10, i + 1, &pos, BER_TYPE_COUNTER, (const void *)(uintptr_t)u.netinfo.rx_bytes[i]) == -1)

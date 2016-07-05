@@ -32,6 +32,8 @@
 #include <ctype.h>
 #include <time.h>
 #include <math.h>
+#include <sys/stat.h>
+
 
 #include "mini_snmpd.h"
 
@@ -39,13 +41,18 @@
 /* We need the uptime in 1/100 seconds, so we can't use sysinfo() */
 unsigned int get_process_uptime(void)
 {
+#ifndef NDM
 	static unsigned int uptime_start = 0;
+#endif
 	unsigned int uptime_now = get_system_uptime();
 
+#ifndef NDM
 	if (uptime_start == 0)
 		uptime_start = uptime_now;
 
 	return uptime_now - uptime_start;
+#endif
+	return uptime_now;
 }
 
 /* We need the uptime in 1/100 seconds, so we can't use sysinfo() */
@@ -88,7 +95,7 @@ void get_meminfo(meminfo_t *meminfo)
 		{ "MemShared", 1, { &meminfo->shared  }},
 		{ "Buffers",   1, { &meminfo->buffers }},
 		{ "Cached",    1, { &meminfo->cached  }},
-		{ NULL }
+		{ NULL,        0, { NULL              }}
 	};
 
 	if (parse_file("/proc/meminfo", fields))
@@ -101,7 +108,7 @@ void get_cpuinfo(cpuinfo_t *cpuinfo)
 		{ "cpu ",  4, { &cpuinfo->user, &cpuinfo->nice, &cpuinfo->system, &cpuinfo->idle }},
 		{ "intr ", 1, { &cpuinfo->irqs   }},
 		{ "ctxt ", 1, { &cpuinfo->cntxts }},
-		{ NULL }
+		{ NULL,    0, { NULL             }}
 	};
 
 	if (parse_file("/proc/stat", fields))
@@ -112,8 +119,17 @@ void get_diskinfo(diskinfo_t *diskinfo)
 {
 	size_t i;
 	struct statfs fs;
+	struct stat st;
 
 	for (i = 0; i < g_disk_list_length; i++) {
+		if (!stat(g_disk_list[i], &st)) {
+			if (!S_ISDIR(st.st_mode)) {
+				continue;
+			}
+		} else {
+			continue;
+		}
+
 		if (statfs(g_disk_list[i], &fs) == -1) {
 			diskinfo->total[i]               = 0;
 			diskinfo->free[i]                = 0;
@@ -136,6 +152,268 @@ void get_diskinfo(diskinfo_t *diskinfo)
 	}
 }
 
+#ifdef NDM
+void get_netinfo(netinfo_t *netinfo)
+{
+	size_t i;
+
+	memset(netinfo, 0, sizeof(netinfo_t));
+
+	for (i = 0; i < g_interface_list_length; ++i) {
+		char request[128];
+
+		/* Perform first 'show interface Iface0' request */
+
+		snprintf(request, sizeof(request), "show interface %s", g_interface_list[i]);
+
+		if ((g_ndmresp = ndm_core_request(g_ndmcore,
+				NDM_CORE_REQUEST_PARSE, NDM_CORE_MODE_CACHE, NULL,
+				request)) == NULL)
+		{
+			lprintf(LOG_ERR, "(%s:%d) ndm request failed: %s", __FILE__, __LINE__, strerror(errno));
+			ndm_core_response_free(&g_ndmresp);
+
+			return;
+		}
+
+		if (!ndm_core_response_is_ok(g_ndmresp)) {
+			lprintf(LOG_ERR, "(%s:%d) ndm response is invalid", __FILE__, __LINE__);
+			ndm_core_response_free(&g_ndmresp);
+
+			return;
+		} else
+		{
+			const struct ndm_xml_node_t* root = ndm_core_response_root(g_ndmresp);
+
+			if (root == NULL) {
+				lprintf(LOG_ERR, "(%s:%d) null ndm response", __FILE__, __LINE__);
+				ndm_core_response_free(&g_ndmresp);
+
+				return;
+			} else {
+				if( ndm_xml_node_type(root) == NDM_XML_NODE_TYPE_ELEMENT )
+				{
+					if( !strcmp(ndm_xml_node_name(root), "response") )
+					{
+						const struct ndm_xml_node_t* node =
+							ndm_xml_node_first_child(root, NULL);
+						int admin_status = 2; // down
+						int ilink = 0;
+						int connected = 0;
+						int imtu = NDM_MIN_MTU_;
+
+						while (node != NULL) {
+							if( !strcmp(ndm_xml_node_name(node), "id") &&
+								!strcmp(ndm_xml_node_name(node), g_interface_list[i]) )
+							{
+								lprintf(LOG_ERR, "(%s:%d) invalid interface returned", __FILE__, __LINE__);
+								ndm_core_response_free(&g_ndmresp);
+
+								return;
+							}
+
+							if( !strcmp(ndm_xml_node_name(node), "type") &&
+								!strcmp(ndm_xml_node_value(node), "Port") )
+							{
+								imtu = NDM_ETH_MTU_;
+								admin_status = 1; // up
+								connected = 1; // connected
+							}
+
+							if( !strcmp(ndm_xml_node_name(node), "state") &&
+								!strcmp(ndm_xml_node_value(node), "up") )
+							{
+								admin_status = 1; // up
+							}
+
+							if( !strcmp(ndm_xml_node_name(node), "link") &&
+								!strcmp(ndm_xml_node_value(node), "up") )
+							{
+								ilink = 1;
+							}
+
+							if( !strcmp(ndm_xml_node_name(node), "connected") &&
+								!strcmp(ndm_xml_node_value(node), "yes") )
+							{
+								connected = 1;
+							}
+
+							if( !strcmp(ndm_xml_node_name(node), "speed") )
+							{
+								long speed = atol(ndm_xml_node_value(node));
+
+								if (speed >= 10 && speed <= 1000)
+								{
+									netinfo->speed[i] = speed * 1000 * 1000;
+								}
+							}
+
+							if( !strcmp(ndm_xml_node_name(node), "last-change") )
+							{
+								double timef = atof(ndm_xml_node_value(node));
+								long timel = timef * 100;
+
+								if( timel >= 0 && timel <= INT_MAX )
+								{
+									netinfo->last_change[i] = timel;
+								}
+							}
+
+							if( !strcmp(ndm_xml_node_name(node), "mtu") )
+							{
+								long lmtu = atol(ndm_xml_node_value(node));
+
+								if( lmtu >= NDM_MIN_MTU_ && lmtu <= NDM_MAX_MTU_ && imtu == NDM_MIN_MTU_ )
+								{
+									imtu = lmtu;
+								}
+							}
+
+							node = ndm_xml_node_next_sibling(node, NULL);
+						}
+
+						netinfo->mtu[i] = imtu;
+						netinfo->admin_status[i] = admin_status;
+
+						if( ilink == 1 && connected == 1 ) {
+							netinfo->status[i] = 1; // up
+						} else {
+							netinfo->status[i] = 2; // down
+						}
+					}
+				}
+			}
+		}
+		ndm_core_response_free(&g_ndmresp);
+
+		/* Perform second 'show interface Iface0 stat' request */
+
+		snprintf(request, sizeof(request), "show interface %s stat", g_interface_list[i]);
+
+		if ((g_ndmresp = ndm_core_request(g_ndmcore,
+				NDM_CORE_REQUEST_PARSE, NDM_CORE_MODE_CACHE, NULL,
+				request)) == NULL)
+		{
+			lprintf(LOG_ERR, "(%s:%d) ndm request failed: %s", __FILE__, __LINE__, strerror(errno));
+			ndm_core_response_free(&g_ndmresp);
+
+			return;
+		}
+
+		if (!ndm_core_response_is_ok(g_ndmresp)) {
+			lprintf(LOG_ERR, "(%s:%d) ndm response is invalid", __FILE__, __LINE__);
+			ndm_core_response_free(&g_ndmresp);
+
+			return;
+		} else
+		{
+			const struct ndm_xml_node_t* root = ndm_core_response_root(g_ndmresp);
+
+			if (root == NULL) {
+				lprintf(LOG_ERR, "(%s:%d) null ndm response", __FILE__, __LINE__);
+				ndm_core_response_free(&g_ndmresp);
+
+				return;
+			} else {
+				if( ndm_xml_node_type(root) == NDM_XML_NODE_TYPE_ELEMENT )
+				{
+					if( !strcmp(ndm_xml_node_name(root), "response") )
+					{
+						const struct ndm_xml_node_t* node =
+							ndm_xml_node_first_child(root, NULL);
+
+						while (node != NULL) {
+
+							if( !strcmp(ndm_xml_node_name(node), "rxpackets") )
+							{
+								long rxp = atol(ndm_xml_node_value(node));
+
+								if( rxp >= 0 && rxp <= UINT_MAX )
+								{
+									netinfo->rx_packets[i] = rxp;
+								}
+							}
+
+							if( !strcmp(ndm_xml_node_name(node), "rxbytes") )
+							{
+								long rxb = atol(ndm_xml_node_value(node));
+
+								if( rxb >= 0 && rxb <= UINT_MAX )
+								{
+									netinfo->rx_bytes[i] = rxb;
+								}
+							}
+
+							if( !strcmp(ndm_xml_node_name(node), "rxerrors") )
+							{
+								long rxe = atol(ndm_xml_node_value(node));
+
+								if( rxe >= 0 && rxe <= UINT_MAX )
+								{
+									netinfo->rx_errors[i] = rxe;
+								}
+							}
+
+							if( !strcmp(ndm_xml_node_name(node), "rxdropped") )
+							{
+								long rxd = atol(ndm_xml_node_value(node));
+
+								if( rxd >= 0 && rxd <= UINT_MAX )
+								{
+									netinfo->rx_drops[i] = rxd;
+								}
+							}
+
+							if( !strcmp(ndm_xml_node_name(node), "txpackets") )
+							{
+								long txp = atol(ndm_xml_node_value(node));
+
+								if( txp >= 0 && txp <= UINT_MAX )
+								{
+									netinfo->tx_packets[i] = txp;
+								}
+							}
+
+							if( !strcmp(ndm_xml_node_name(node), "txbytes") )
+							{
+								long txb = atol(ndm_xml_node_value(node));
+
+								if( txb >= 0 && txb <= UINT_MAX )
+								{
+									netinfo->tx_bytes[i] = txb;
+								}
+							}
+
+							if( !strcmp(ndm_xml_node_name(node), "txerrors") )
+							{
+								long txe = atol(ndm_xml_node_value(node));
+
+								if( txe >= 0 && txe <= UINT_MAX )
+								{
+									netinfo->tx_errors[i] = txe;
+								}
+							}
+
+							if( !strcmp(ndm_xml_node_name(node), "txdropped") )
+							{
+								long txd = atol(ndm_xml_node_value(node));
+
+								if( txd >= 0 && txd <= UINT_MAX )
+								{
+									netinfo->tx_drops[i] = txd;
+								}
+							}
+
+							node = ndm_xml_node_next_sibling(node, NULL);
+						}
+					}
+				}
+			}
+		}
+		ndm_core_response_free(&g_ndmresp);
+	}
+}
+#else
 void get_netinfo(netinfo_t *netinfo)
 {
 	int fd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -173,6 +451,7 @@ void get_netinfo(netinfo_t *netinfo)
 	if (parse_file("/proc/net/dev", fields))
 		memset(netinfo, 0, sizeof(*netinfo));
 }
+#endif
 
 #endif /* __linux__ */
 

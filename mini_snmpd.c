@@ -33,6 +33,25 @@
 
 #include "mini_snmpd.h"
 
+#ifdef NDM
+static void ndm_core_close_()
+{
+	ndm_atexit_core_close_(NULL);
+}
+
+void ndm_atexit_core_close_(struct ndm_core_t* core)
+{
+	static struct ndm_core_t* core_ = NULL;
+
+	if (core != NULL) {
+		assert( core_ == NULL );
+		core_ = core;
+		atexit(ndm_core_close_);
+	} else {
+		ndm_core_close(&core_);
+	}
+}
+#endif
 
 static void print_help(void)
 {
@@ -51,8 +70,10 @@ static void print_help(void)
 	       "  -V, --vendor OID       System vendor, default: none\n"
 	       "  -L, --location STR     System location, default: none\n"
 	       "  -C, --contact STR      System contact, default: none\n"
+#ifndef NDM
 	       "  -d, --disks PATH       Disks to monitor, default: /\n"
 	       "  -i, --interfaces IFACE Network interfaces to monitor, default: lo\n"
+#endif
 	       "  -I, --listen IFACE     Network interface to listen, default: all\n"
 	       "  -t, --timeout SEC      Timeout for MIB updates, default: 1 second\n"
 	       "  -a, --auth             Enable authentication, i.e. SNMP version 2c\n"
@@ -300,8 +321,12 @@ int main(int argc, char *argv[])
 		{ "vendor", 1, 0, 'V' },
 		{ "location", 1, 0, 'L' },
 		{ "contact", 1, 0, 'C' },
+#ifndef NDM
 		{ "disks", 1, 0, 'd' },
+#endif
+#ifndef NDM
 		{ "interfaces", 1, 0, 'i' },
+#endif
 #ifndef __FreeBSD__
 		{ "listen", 1, 0, 'I' },
 #endif
@@ -385,13 +410,16 @@ int main(int argc, char *argv[])
 				g_bind_to_device = strdup(optarg);
 				break;
 #endif
+#ifndef NDM
 			case 'd':
 				g_disk_list_length = split(optarg, ",:;", g_disk_list, MAX_NR_DISKS);
 				break;
-
+#endif
+#ifndef NDM
 			case 'i':
 				g_interface_list_length = split(optarg, ",;", g_interface_list, MAX_NR_INTERFACES);
 				break;
+#endif
 
 			case 't':
 				g_timeout = atoi(optarg) * 100;
@@ -419,13 +447,26 @@ int main(int argc, char *argv[])
 		}
 	}
 
+#ifdef NDM
+	if ((g_ndmcore = ndm_core_open(NDM_AGENT_DEFAULT_,
+			NDM_CACHE_TTL_MS_, NDM_CORE_DEFAULT_CACHE_MAX_SIZE)) == NULL)
+	{
+		lprintf(LOG_ERR, "ndm core connection failed: %s", strerror(errno));
+
+		exit(EXIT_SYSCALL);
+	} else
+	{
+		ndm_atexit_core_close_(g_ndmcore);
+	}
+#endif
+
 	if (g_daemon) {
 		lprintf(LOG_DEBUG, "Daemonizing ...");
 		if (-1 == daemon(0, 0)) {
 			lprintf(LOG_ERR, "Failed daemonizing: %m");
 			return 1;
 		}
-		openlog(__progname, LOG_CONS | LOG_PID, LOG_DAEMON);
+		openlog(__progname, LOG_CONS, LOG_DAEMON);
 	}
 
 	/* Store the starting time since we need it for MIB updates */
@@ -564,22 +605,24 @@ int main(int argc, char *argv[])
 		}
 
 		/* Determine whether to update the MIB and the next ticks to sleep */
-		ticks = ticks_since(&tv_last, &tv_now);
-		if (ticks < 0 || ticks >= g_timeout) {
-			lprintf(LOG_DEBUG, "updating the MIB (full)\n");
-			if (mib_update(1) == -1)
-				exit(EXIT_SYSCALL);
+		if (!g_quit) {
+			ticks = ticks_since(&tv_last, &tv_now);
+			if (ticks < 0 || ticks >= g_timeout) {
+				lprintf(LOG_DEBUG, "updating the MIB (full)\n");
+				if (mib_update(1) == -1)
+					exit(EXIT_SYSCALL);
 
-			memcpy(&tv_last, &tv_now, sizeof(tv_now));
-			tv_sleep.tv_sec = g_timeout / 100;
-			tv_sleep.tv_usec = (g_timeout % 100) * 10000;
-		} else {
-			lprintf(LOG_DEBUG, "updating the MIB (partial)\n");
-			if (mib_update(0) == -1)
-				exit(EXIT_SYSCALL);
+				memcpy(&tv_last, &tv_now, sizeof(tv_now));
+				tv_sleep.tv_sec = g_timeout / 100;
+				tv_sleep.tv_usec = (g_timeout % 100) * 10000;
+			} else {
+				lprintf(LOG_DEBUG, "updating the MIB (partial)\n");
+				if (mib_update(0) == -1)
+					exit(EXIT_SYSCALL);
 
-			tv_sleep.tv_sec = (g_timeout - ticks) / 100;
-			tv_sleep.tv_usec = ((g_timeout - ticks) % 100) * 10000;
+				tv_sleep.tv_sec = (g_timeout - ticks) / 100;
+				tv_sleep.tv_usec = ((g_timeout - ticks) % 100) * 10000;
+			}
 		}
 
 #ifdef DEBUG

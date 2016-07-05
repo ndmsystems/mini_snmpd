@@ -23,3 +23,12 @@ GPATH
 GRTAGS
 GSYMS
 GTAGS
+ABOUT-NLS
+ChangeLog
+NEWS
+config.rpath
+.built
+.built_check
+.configured_*
+.dep_files
+.prepared_*

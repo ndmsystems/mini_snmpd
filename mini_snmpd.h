@@ -20,6 +20,21 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 
+#ifdef NDM
+#include <assert.h>
+#include <ndm/core.h>
+#include <ndm/log.h>
+#include <ndm/xml.h>
+
+#define NDM_CACHE_TTL_MS_				1000
+#define NDM_PARSE_MAX_SIZE_				4096
+#define NDM_AGENT_DEFAULT_				"mini_snmpd/ci"
+#define NDM_MOUNT_PATH_					"/tmp/mnt"
+#define NDM_MIN_MTU_					576
+#define NDM_ETH_MTU_					1500
+#define NDM_MAX_MTU_					9000
+#define NDM_EMPTY_MAC_					"00:00:00:00:00:00"
+#endif
 
 /*
  * Project dependent defines
@@ -32,9 +47,9 @@
 #define MAX_NR_CLIENTS                                  16
 #define MAX_NR_OIDS                                     16
 #define MAX_NR_SUBIDS                                   16
-#define MAX_NR_DISKS                                    4
-#define MAX_NR_INTERFACES                               8
-#define MAX_NR_VALUES                                   192
+#define MAX_NR_DISKS                                    64
+#define MAX_NR_INTERFACES                               64
+#define MAX_NR_VALUES                                   512
 
 #define MAX_PACKET_SIZE                                 2048
 #define MAX_STRING_SIZE                                 64
@@ -221,6 +236,7 @@ typedef struct diskinfo_s {
 
 typedef struct netinfo_s {
 	unsigned int status[MAX_NR_INTERFACES];
+	unsigned int admin_status[MAX_NR_INTERFACES];
 	unsigned int rx_bytes[MAX_NR_INTERFACES];
 	unsigned int rx_packets[MAX_NR_INTERFACES];
 	unsigned int rx_errors[MAX_NR_INTERFACES];
@@ -229,6 +245,9 @@ typedef struct netinfo_s {
 	unsigned int tx_packets[MAX_NR_INTERFACES];
 	unsigned int tx_errors[MAX_NR_INTERFACES];
 	unsigned int tx_drops[MAX_NR_INTERFACES];
+	unsigned long speed[MAX_NR_INTERFACES];
+	unsigned long last_change[MAX_NR_INTERFACES];
+	unsigned int mtu[MAX_NR_INTERFACES];
 } netinfo_t;
 
 #ifdef CONFIG_ENABLE_DEMO
@@ -266,6 +285,11 @@ extern char     *g_disk_list[MAX_NR_DISKS];
 extern size_t    g_disk_list_length;
 
 extern char     *g_interface_list[MAX_NR_INTERFACES];
+#ifdef NDM
+extern size_t    g_interface_type[MAX_NR_INTERFACES];
+extern size_t    g_interface_mtu[MAX_NR_INTERFACES];
+extern char     *g_interface_mac[MAX_NR_INTERFACES];
+#endif
 extern size_t    g_interface_list_length;
 
 extern in_port_t g_udp_port;
@@ -329,6 +353,15 @@ int mib_update   (int full);
 
 value_t *mib_find     (const oid_t *oid, size_t *pos);
 value_t *mib_findnext (const oid_t *oid);
+
+
+#ifdef NDM
+extern struct ndm_core_t *g_ndmcore;
+extern struct ndm_core_response_t *g_ndmresp;
+
+void ndm_atexit_core_close_(struct ndm_core_t* core);
+#endif
+
 
 #endif /* MINI_SNMPD_H_ */
 

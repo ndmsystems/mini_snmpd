@@ -24,7 +24,7 @@
 const struct in_addr inaddr_any = { INADDR_ANY };
 
 int       g_family  = AF_INET;
-int       g_timeout = 100;
+int       g_timeout = 250; // once a 2,5 seconds
 int       g_auth    = 0;
 int       g_daemon  = 1;
 int       g_syslog  = 0;
@@ -38,10 +38,15 @@ char     *g_location       = NULL;
 char     *g_contact        = NULL;
 char     *g_bind_to_device = NULL;
 
-char     *g_disk_list[MAX_NR_DISKS] = { "/" };
-size_t    g_disk_list_length        = 1;
+char     *g_disk_list[MAX_NR_DISKS];
+size_t    g_disk_list_length;
 
 char     *g_interface_list[MAX_NR_INTERFACES];
+#ifdef NDM
+size_t    g_interface_type[MAX_NR_INTERFACES];
+size_t    g_interface_mtu[MAX_NR_INTERFACES];
+char     *g_interface_mac[MAX_NR_INTERFACES];
+#endif
 size_t    g_interface_list_length = 0;
 
 in_port_t g_udp_port = 161;
@@ -56,6 +61,11 @@ size_t    g_tcp_client_list_length = 0;
 
 value_t   g_mib[MAX_NR_VALUES];
 size_t    g_mib_length = 0;
+
+#ifdef NDM
+struct ndm_core_t *g_ndmcore = NULL;
+struct ndm_core_response_t *g_ndmresp = NULL;
+#endif
 
 /* vim: ts=4 sts=4 sw=4 nowrap
  */
