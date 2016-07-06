@@ -34,6 +34,7 @@
 #define NDM_ETH_MTU_					1500
 #define NDM_MAX_MTU_					9000
 #define NDM_EMPTY_MAC_					"00:00:00:00:00:00"
+#define NDM_IDLE_SLEEP_SEC_				45
 #endif
 
 /*

@@ -466,8 +466,9 @@ int main(int argc, char *argv[])
 			lprintf(LOG_ERR, "Failed daemonizing: %m");
 			return 1;
 		}
-		openlog(__progname, LOG_CONS, LOG_DAEMON);
 	}
+
+	openlog(__progname, LOG_CONS, LOG_DAEMON);
 
 	/* Store the starting time since we need it for MIB updates */
 	if (gettimeofday(&tv_last, NULL) == -1) {
@@ -613,16 +614,28 @@ int main(int argc, char *argv[])
 					exit(EXIT_SYSCALL);
 
 				memcpy(&tv_last, &tv_now, sizeof(tv_now));
+#ifndef NDM
 				tv_sleep.tv_sec = g_timeout / 100;
 				tv_sleep.tv_usec = (g_timeout % 100) * 10000;
+#endif
 			} else {
 				lprintf(LOG_DEBUG, "updating the MIB (partial)\n");
 				if (mib_update(0) == -1)
 					exit(EXIT_SYSCALL);
 
+#ifndef NDM
 				tv_sleep.tv_sec = (g_timeout - ticks) / 100;
 				tv_sleep.tv_usec = ((g_timeout - ticks) % 100) * 10000;
+#endif
 			}
+
+#ifdef NDM
+			/* Update MIB tables once a NDM_IDLE_SLEEP_SEC_ without
+			 * clients requests */
+
+			tv_sleep.tv_sec = NDM_IDLE_SLEEP_SEC_;
+			tv_sleep.tv_usec = 0;
+#endif
 		}
 
 #ifdef DEBUG
