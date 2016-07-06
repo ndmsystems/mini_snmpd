@@ -490,6 +490,7 @@ int mib_build(void)
 	char hostname[MAX_STRING_SIZE];
 	char name[16];
 	size_t i;
+	int sysServices;
 
 #if NDM
 	if ((g_ndmresp = ndm_core_request(g_ndmcore,
@@ -547,12 +548,19 @@ int mib_build(void)
 	 * The system MIB: basic info about the host (SNMPv2-MIB.txt)
 	 * Caution: on changes, adapt the corresponding mib_update() section too!
 	 */
+	sysServices = 1 /* Physical layer */ + 
+				(1 << 1) /* L2 Datalink layer */ +
+				(1 << 2) /* L3 IP Layer */ +
+				(1 << 3) /* L4 TCP/UDP Layer */ +
+				(1 << 6) /* Applications layer */;
+	
 	if (mib_build_entry(&m_system_oid, 1, 0, BER_TYPE_OCTET_STRING, g_description ?: "") == -1 ||
 	    mib_build_entry(&m_system_oid, 2, 0, BER_TYPE_OID,          g_vendor )           == -1 ||
 	   !mib_alloc_entry(&m_system_oid, 3, 0, BER_TYPE_TIME_TICKS)                              ||
 	    mib_build_entry(&m_system_oid, 4, 0, BER_TYPE_OCTET_STRING, g_contact ?: "")     == -1 ||
 	    mib_build_entry(&m_system_oid, 5, 0, BER_TYPE_OCTET_STRING, hostname)            == -1 ||
-	    mib_build_entry(&m_system_oid, 6, 0, BER_TYPE_OCTET_STRING, g_location ?: "")    == -1)
+	    mib_build_entry(&m_system_oid, 6, 0, BER_TYPE_OCTET_STRING, g_location ?: "")    == -1 ||
+	    mib_build_entry(&m_system_oid, 7, 0, BER_TYPE_INTEGER, (const void *)(intptr_t)sysServices) == -1)
 		return -1;
 
 	/*

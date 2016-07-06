@@ -121,6 +121,8 @@ void get_diskinfo(diskinfo_t *diskinfo)
 	struct statfs fs;
 	struct stat st;
 
+	memset(diskinfo, 0, sizeof(diskinfo_t));
+
 	for (i = 0; i < g_disk_list_length; i++) {
 		if (!stat(g_disk_list[i], &st)) {
 			if (!S_ISDIR(st.st_mode)) {
@@ -326,81 +328,81 @@ void get_netinfo(netinfo_t *netinfo)
 
 							if( !strcmp(ndm_xml_node_name(node), "rxpackets") )
 							{
-								long rxp = atol(ndm_xml_node_value(node));
+								long long rxp = atoll(ndm_xml_node_value(node));
 
-								if( rxp >= 0 && rxp <= UINT_MAX )
+								if( rxp >= 0 )
 								{
-									netinfo->rx_packets[i] = rxp;
+									netinfo->rx_packets[i] = rxp % UINT_MAX;
 								}
 							}
 
 							if( !strcmp(ndm_xml_node_name(node), "rxbytes") )
 							{
-								long rxb = atol(ndm_xml_node_value(node));
+								long long rxb = atoll(ndm_xml_node_value(node));
 
-								if( rxb >= 0 && rxb <= UINT_MAX )
+								if( rxb >= 0 )
 								{
-									netinfo->rx_bytes[i] = rxb;
+									netinfo->rx_bytes[i] = rxb % UINT_MAX;
 								}
 							}
 
 							if( !strcmp(ndm_xml_node_name(node), "rxerrors") )
 							{
-								long rxe = atol(ndm_xml_node_value(node));
+								long long rxe = atoll(ndm_xml_node_value(node));
 
-								if( rxe >= 0 && rxe <= UINT_MAX )
+								if( rxe >= 0 )
 								{
-									netinfo->rx_errors[i] = rxe;
+									netinfo->rx_errors[i] = rxe % UINT_MAX;
 								}
 							}
 
 							if( !strcmp(ndm_xml_node_name(node), "rxdropped") )
 							{
-								long rxd = atol(ndm_xml_node_value(node));
+								long long rxd = atoll(ndm_xml_node_value(node));
 
-								if( rxd >= 0 && rxd <= UINT_MAX )
+								if( rxd >= 0 )
 								{
-									netinfo->rx_drops[i] = rxd;
+									netinfo->rx_drops[i] = rxd % UINT_MAX;
 								}
 							}
 
 							if( !strcmp(ndm_xml_node_name(node), "txpackets") )
 							{
-								long txp = atol(ndm_xml_node_value(node));
+								long long txp = atoll(ndm_xml_node_value(node));
 
-								if( txp >= 0 && txp <= UINT_MAX )
+								if( txp >= 0 )
 								{
-									netinfo->tx_packets[i] = txp;
+									netinfo->tx_packets[i] = txp % UINT_MAX;
 								}
 							}
 
 							if( !strcmp(ndm_xml_node_name(node), "txbytes") )
 							{
-								long txb = atol(ndm_xml_node_value(node));
+								long long txb = atoll(ndm_xml_node_value(node));
 
-								if( txb >= 0 && txb <= UINT_MAX )
+								if( txb >= 0 )
 								{
-									netinfo->tx_bytes[i] = txb;
+									netinfo->tx_bytes[i] = txb % UINT_MAX;
 								}
 							}
 
 							if( !strcmp(ndm_xml_node_name(node), "txerrors") )
 							{
-								long txe = atol(ndm_xml_node_value(node));
+								long long txe = atoll(ndm_xml_node_value(node));
 
-								if( txe >= 0 && txe <= UINT_MAX )
+								if( txe >= 0 )
 								{
-									netinfo->tx_errors[i] = txe;
+									netinfo->tx_errors[i] = txe % UINT_MAX;
 								}
 							}
 
 							if( !strcmp(ndm_xml_node_name(node), "txdropped") )
 							{
-								long txd = atol(ndm_xml_node_value(node));
+								long long txd = atoll(ndm_xml_node_value(node));
 
-								if( txd >= 0 && txd <= UINT_MAX )
+								if( txd >= 0 )
 								{
-									netinfo->tx_drops[i] = txd;
+									netinfo->tx_drops[i] = txd % UINT_MAX;
 								}
 							}
 
