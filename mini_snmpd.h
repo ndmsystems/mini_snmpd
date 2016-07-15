@@ -35,6 +35,8 @@
 #define NDM_MAX_MTU_					9000
 #define NDM_EMPTY_MAC_					"00:00:00:00:00:00"
 #define NDM_IDLE_SLEEP_SEC_				45
+#define NDM_LOOPBACK_IFACE_				"Loopback"
+#define NDM_LOOPBACK_MTU_				16436
 #endif
 
 /*
@@ -325,7 +327,7 @@ client_t    *find_oldest_client(void);
 
 void        *allocate    (size_t len);
 
-int          parse_file  (char *file, field_t fields[]);
+int          parse_file  (char *file, field_t fields[], size_t limit);
 int          read_file   (const char *filename, char *buffer, size_t size);
 
 unsigned int read_value  (const char *buffer, const char *prefix);

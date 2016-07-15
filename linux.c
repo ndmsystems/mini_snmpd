@@ -98,7 +98,7 @@ void get_meminfo(meminfo_t *meminfo)
 		{ NULL,        0, { NULL              }}
 	};
 
-	if (parse_file("/proc/meminfo", fields))
+	if (parse_file("/proc/meminfo", fields, 255))
 		memset(meminfo, 0, sizeof(meminfo_t));
 }
 
@@ -111,7 +111,7 @@ void get_cpuinfo(cpuinfo_t *cpuinfo)
 		{ NULL,    0, { NULL             }}
 	};
 
-	if (parse_file("/proc/stat", fields))
+	if (parse_file("/proc/stat", fields, 255))
 		memset(cpuinfo, 0, sizeof(cpuinfo_t));
 }
 
@@ -155,14 +155,61 @@ void get_diskinfo(diskinfo_t *diskinfo)
 }
 
 #ifdef NDM
+static void get_netinfo_loopback(netinfo_t *netinfo)
+{
+	int fd = socket(AF_INET, SOCK_DGRAM, 0);
+	struct ifreq ifreq;
+	field_t fields;
+
+	memset(&fields, 0, sizeof(field_t));
+
+	fields.prefix    = strdup("lo");
+	fields.len       = 12;
+	fields.value[0]  = &netinfo->rx_bytes[0];
+	fields.value[1]  = &netinfo->rx_packets[0];
+	fields.value[2]  = &netinfo->rx_errors[0];
+	fields.value[3]  = &netinfo->rx_drops[0];
+	fields.value[8]  = &netinfo->tx_bytes[0];
+	fields.value[9]  = &netinfo->tx_packets[0];
+	fields.value[10] = &netinfo->tx_errors[0];
+	fields.value[11] = &netinfo->tx_drops[0];
+
+	snprintf(ifreq.ifr_name, sizeof(ifreq.ifr_name), "lo");
+	if (fd == -1 || ioctl(fd, SIOCGIFFLAGS, &ifreq) == -1) {
+		netinfo->status[0] = 4;
+	} else {
+		if (ifreq.ifr_flags & IFF_UP)
+			netinfo->status[0] = (ifreq.ifr_flags & IFF_RUNNING) ? 1 : 7;
+		else
+			netinfo->status[0] = 2;
+	}
+
+	netinfo->admin_status[0] = 1; // up
+	netinfo->mtu[0] = g_interface_mtu[0];
+
+	if (fd != -1)
+		close(fd);
+
+	if (parse_file("/proc/net/dev", &fields, 1))
+		memset(netinfo, 0, sizeof(*netinfo));
+}
+
+
 void get_netinfo(netinfo_t *netinfo)
 {
 	size_t i;
 
 	memset(netinfo, 0, sizeof(netinfo_t));
 
+	get_netinfo_loopback(netinfo);
+
 	for (i = 0; i < g_interface_list_length; ++i) {
 		char request[128];
+
+		if( !strcmp(g_interface_list[i], NDM_LOOPBACK_IFACE_) )
+		{
+			continue;
+		}
 
 		/* Perform first 'show interface Iface0' request */
 
@@ -450,7 +497,7 @@ void get_netinfo(netinfo_t *netinfo)
 	if (fd != -1)
 		close(fd);
 
-	if (parse_file("/proc/net/dev", fields))
+	if (parse_file("/proc/net/dev", fields, 255))
 		memset(netinfo, 0, sizeof(*netinfo));
 }
 #endif
