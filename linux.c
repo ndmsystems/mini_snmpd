@@ -192,6 +192,8 @@ static void get_netinfo_loopback(netinfo_t *netinfo)
 
 	if (parse_file("/proc/net/dev", &fields, 1))
 		memset(netinfo, 0, sizeof(*netinfo));
+
+	free(fields.prefix);
 }
 
 
