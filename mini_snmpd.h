@@ -37,6 +37,7 @@
 #define NDM_IDLE_SLEEP_SEC_				45
 #define NDM_LOOPBACK_IFACE_				"Loopback"
 #define NDM_LOOPBACK_MTU_				16436
+#define NDM_LOOPBACK_INDEX_				0
 #endif
 
 /*

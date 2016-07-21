@@ -570,10 +570,10 @@ int mib_build(void)
 #ifdef NDM
 
 	g_interface_list_length = 1;
-	g_interface_list[0] = strdup(NDM_LOOPBACK_IFACE_);
-	g_interface_type[0] = 24; // softwareLoopback(24)
-	g_interface_mtu[0] = NDM_LOOPBACK_MTU_;
-	g_interface_mac[0] = strdup(NDM_EMPTY_MAC_);
+	g_interface_list[NDM_LOOPBACK_INDEX_] = strdup(NDM_LOOPBACK_IFACE_);
+	g_interface_type[NDM_LOOPBACK_INDEX_] = 24; // softwareLoopback(24)
+	g_interface_mtu[NDM_LOOPBACK_INDEX_] = NDM_LOOPBACK_MTU_;
+	g_interface_mac[NDM_LOOPBACK_INDEX_] = strdup(NDM_EMPTY_MAC_);
 
 	if ((g_ndmresp = ndm_core_request(g_ndmcore,
 			NDM_CORE_REQUEST_PARSE, NDM_CORE_MODE_CACHE, NULL,

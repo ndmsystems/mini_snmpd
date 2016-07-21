@@ -165,27 +165,27 @@ static void get_netinfo_loopback(netinfo_t *netinfo)
 
 	fields.prefix    = strdup("lo");
 	fields.len       = 12;
-	fields.value[0]  = &netinfo->rx_bytes[0];
-	fields.value[1]  = &netinfo->rx_packets[0];
-	fields.value[2]  = &netinfo->rx_errors[0];
-	fields.value[3]  = &netinfo->rx_drops[0];
-	fields.value[8]  = &netinfo->tx_bytes[0];
-	fields.value[9]  = &netinfo->tx_packets[0];
-	fields.value[10] = &netinfo->tx_errors[0];
-	fields.value[11] = &netinfo->tx_drops[0];
+	fields.value[0]  = &netinfo->rx_bytes[NDM_LOOPBACK_INDEX_];
+	fields.value[1]  = &netinfo->rx_packets[NDM_LOOPBACK_INDEX_];
+	fields.value[2]  = &netinfo->rx_errors[NDM_LOOPBACK_INDEX_];
+	fields.value[3]  = &netinfo->rx_drops[NDM_LOOPBACK_INDEX_];
+	fields.value[8]  = &netinfo->tx_bytes[NDM_LOOPBACK_INDEX_];
+	fields.value[9]  = &netinfo->tx_packets[NDM_LOOPBACK_INDEX_];
+	fields.value[10] = &netinfo->tx_errors[NDM_LOOPBACK_INDEX_];
+	fields.value[11] = &netinfo->tx_drops[NDM_LOOPBACK_INDEX_];
 
 	snprintf(ifreq.ifr_name, sizeof(ifreq.ifr_name), "lo");
 	if (fd == -1 || ioctl(fd, SIOCGIFFLAGS, &ifreq) == -1) {
-		netinfo->status[0] = 4;
+		netinfo->status[NDM_LOOPBACK_INDEX_] = 4;
 	} else {
 		if (ifreq.ifr_flags & IFF_UP)
-			netinfo->status[0] = (ifreq.ifr_flags & IFF_RUNNING) ? 1 : 7;
+			netinfo->status[NDM_LOOPBACK_INDEX_] = (ifreq.ifr_flags & IFF_RUNNING) ? 1 : 7;
 		else
-			netinfo->status[0] = 2;
+			netinfo->status[NDM_LOOPBACK_INDEX_] = 2;
 	}
 
-	netinfo->admin_status[0] = 1; // up
-	netinfo->mtu[0] = g_interface_mtu[0];
+	netinfo->admin_status[NDM_LOOPBACK_INDEX_] = 1; // up
+	netinfo->mtu[NDM_LOOPBACK_INDEX_] = g_interface_mtu[NDM_LOOPBACK_INDEX_];
 
 	if (fd != -1)
 		close(fd);
