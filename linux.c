@@ -98,7 +98,7 @@ void get_meminfo(meminfo_t *meminfo)
 		{ NULL,        0, { NULL              }}
 	};
 
-	if (parse_file("/proc/meminfo", fields, 255))
+	if (parse_file("/proc/meminfo", fields, 255, 0))
 		memset(meminfo, 0, sizeof(meminfo_t));
 }
 
@@ -111,8 +111,33 @@ void get_cpuinfo(cpuinfo_t *cpuinfo)
 		{ NULL,    0, { NULL             }}
 	};
 
-	if (parse_file("/proc/stat", fields, 255))
+	if (parse_file("/proc/stat", fields, 255, 0))
 		memset(cpuinfo, 0, sizeof(cpuinfo_t));
+}
+
+void get_tcpinfo(tcpinfo_t *tcpinfo)
+{
+	field_t fields[] = {
+		{ "Tcp", 14,
+			{ &tcpinfo->tcpRtoAlgorithm,
+			  &tcpinfo->tcpRtoMin,
+			  &tcpinfo->tcpRtoMax,
+			  &tcpinfo->tcpMaxConn,
+			  &tcpinfo->tcpActiveOpens,
+			  &tcpinfo->tcpPassiveOpens,
+			  &tcpinfo->tcpAttemptFails,
+			  &tcpinfo->tcpEstabResets,
+			  &tcpinfo->tcpCurrEstab,
+			  &tcpinfo->tcpInSegs,
+			  &tcpinfo->tcpOutSegs,
+			  &tcpinfo->tcpRetransSegs,
+			  &tcpinfo->tcpInErrs,
+			  &tcpinfo->tcpOutRsts } },
+		{ NULL,     0, {  NULL     } }
+	};
+
+	if (parse_file("/proc/net/snmp", fields, 255, 1))
+		memset(tcpinfo, 0, sizeof(tcpinfo_t));
 }
 
 void get_diskinfo(diskinfo_t *diskinfo)
@@ -190,7 +215,7 @@ static void get_netinfo_loopback(netinfo_t *netinfo)
 	if (fd != -1)
 		close(fd);
 
-	if (parse_file("/proc/net/dev", &fields, 1))
+	if (parse_file("/proc/net/dev", &fields, 1, 0))
 		memset(netinfo, 0, sizeof(*netinfo));
 
 	free(fields.prefix);
@@ -499,7 +524,7 @@ void get_netinfo(netinfo_t *netinfo)
 	if (fd != -1)
 		close(fd);
 
-	if (parse_file("/proc/net/dev", fields, 255))
+	if (parse_file("/proc/net/dev", fields, 255, 0))
 		memset(netinfo, 0, sizeof(*netinfo));
 }
 #endif

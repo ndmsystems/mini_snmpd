@@ -72,6 +72,7 @@
 #define BER_TYPE_COUNTER                                0x41
 #define BER_TYPE_GAUGE                                  0x42
 #define BER_TYPE_TIME_TICKS                             0x43
+#define BER_TYPE_COUNTER64                              0x46 
 #define BER_TYPE_NO_SUCH_OBJECT                         0x80
 #define BER_TYPE_NO_SUCH_INSTANCE                       0x81
 #define BER_TYPE_END_OF_MIB_VIEW                        0x82
@@ -188,7 +189,7 @@ typedef struct field_s {
 	char         *prefix;
 
 	size_t        len;
-	unsigned int *value[12];
+	long long    *value[24];
 } field_t;
 
 typedef struct request_s {
@@ -214,20 +215,20 @@ typedef struct loadinfo_s {
 } loadinfo_t;
 
 typedef struct meminfo_s {
-	unsigned int total;
-	unsigned int free;
-	unsigned int shared;
-	unsigned int buffers;
-	unsigned int cached;
+	long long total;
+	long long free;
+	long long shared;
+	long long buffers;
+	long long cached;
 } meminfo_t;
 
 typedef struct cpuinfo_s {
-	unsigned int user;
-	unsigned int nice;
-	unsigned int system;
-	unsigned int idle;
-	unsigned int irqs;
-	unsigned int cntxts;
+	long long user;
+	long long nice;
+	long long system;
+	long long idle;
+	long long irqs;
+	long long cntxts;
 } cpuinfo_t;
 
 typedef struct diskinfo_s {
@@ -239,20 +240,37 @@ typedef struct diskinfo_s {
 } diskinfo_t;
 
 typedef struct netinfo_s {
-	unsigned int status[MAX_NR_INTERFACES];
-	unsigned int admin_status[MAX_NR_INTERFACES];
-	unsigned int rx_bytes[MAX_NR_INTERFACES];
-	unsigned int rx_packets[MAX_NR_INTERFACES];
-	unsigned int rx_errors[MAX_NR_INTERFACES];
-	unsigned int rx_drops[MAX_NR_INTERFACES];
-	unsigned int tx_bytes[MAX_NR_INTERFACES];
-	unsigned int tx_packets[MAX_NR_INTERFACES];
-	unsigned int tx_errors[MAX_NR_INTERFACES];
-	unsigned int tx_drops[MAX_NR_INTERFACES];
-	unsigned long speed[MAX_NR_INTERFACES];
-	unsigned long last_change[MAX_NR_INTERFACES];
-	unsigned int mtu[MAX_NR_INTERFACES];
+	long long status[MAX_NR_INTERFACES];
+	long long admin_status[MAX_NR_INTERFACES];
+	long long rx_bytes[MAX_NR_INTERFACES];
+	long long rx_packets[MAX_NR_INTERFACES];
+	long long rx_errors[MAX_NR_INTERFACES];
+	long long rx_drops[MAX_NR_INTERFACES];
+	long long tx_bytes[MAX_NR_INTERFACES];
+	long long tx_packets[MAX_NR_INTERFACES];
+	long long tx_errors[MAX_NR_INTERFACES];
+	long long tx_drops[MAX_NR_INTERFACES];
+	long long speed[MAX_NR_INTERFACES];
+	long long last_change[MAX_NR_INTERFACES];
+	long long mtu[MAX_NR_INTERFACES];
 } netinfo_t;
+
+typedef struct tcpinfo_s {
+	long long tcpRtoAlgorithm;
+	long long tcpRtoMin;
+	long long tcpRtoMax;
+	long long tcpMaxConn;
+	long long tcpActiveOpens;
+	long long tcpPassiveOpens;
+	long long tcpAttemptFails;
+	long long tcpEstabResets;
+	long long tcpCurrEstab;
+	long long tcpInSegs;
+	long long tcpOutSegs;
+	long long tcpRetransSegs;
+	long long tcpInErrs;
+	long long tcpOutRsts;
+} tcpinfo_t;
 
 #ifdef CONFIG_ENABLE_DEMO
 typedef struct demoinfo_s {
@@ -328,7 +346,7 @@ client_t    *find_oldest_client(void);
 
 void        *allocate    (size_t len);
 
-int          parse_file  (char *file, field_t fields[], size_t limit);
+int          parse_file  (char *file, field_t fields[], size_t limit, size_t skip_prefix);
 int          read_file   (const char *filename, char *buffer, size_t size);
 
 unsigned int read_value  (const char *buffer, const char *prefix);
@@ -342,6 +360,7 @@ unsigned int get_system_uptime  (void);
 void         get_loadinfo       (loadinfo_t *loadinfo);
 void         get_meminfo        (meminfo_t *meminfo);
 void         get_cpuinfo        (cpuinfo_t *cpuinfo);
+void         get_tcpinfo        (tcpinfo_t *tcpinfo);
 void         get_diskinfo       (diskinfo_t *diskinfo);
 void         get_netinfo        (netinfo_t *netinfo);
 #ifdef CONFIG_ENABLE_DEMO
