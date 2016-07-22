@@ -675,6 +675,8 @@ int mib_build(void)
 									{
 										if( !strcmp(ndm_xml_node_value(cnode), "FastEthernet") ||
 											!strcmp(ndm_xml_node_value(cnode), "GigabitEthernet") ||
+											!strcmp(ndm_xml_node_value(cnode), "AccessPoint") ||
+											!strcmp(ndm_xml_node_value(cnode), "WifiStation") ||
 											!strcmp(ndm_xml_node_value(cnode), "Port") ||
 											!strcmp(ndm_xml_node_value(cnode), "AsixEthernet") ||
 											!strcmp(ndm_xml_node_value(cnode), "Davicom") ||
@@ -714,7 +716,7 @@ int mib_build(void)
 										{
 											g_interface_type[j] = 135; // l2vlan (135),
 										} else
-										if( !strcmp(ndm_xml_node_value(cnode), "AccessPoint") )
+										if( !strcmp(ndm_xml_node_value(cnode), "WifiMaster") )
 										{
 											g_interface_type[j] = 253; //capwapDot11Bss (253),
 										} else
@@ -805,7 +807,7 @@ int mib_build(void)
 			g_interface_type[i] == 238 /* adsl */ ||
 			g_interface_type[i] == 209 /* bridge */ ||
 			g_interface_type[i] == 135 /* vlan */ ||
-			g_interface_type[i] == 253 /* accesspoint */ ||
+			g_interface_type[i] == 253 /* wifimaster */ ||
 			g_interface_type[i] == 24 /* softwareLoopback(24) */ ||
 			g_interface_type[i] == 1 /* other */ )
 		{
