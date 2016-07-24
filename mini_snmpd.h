@@ -49,11 +49,11 @@
 #define EXIT_SYSCALL                                    2
 
 #define MAX_NR_CLIENTS                                  16
-#define MAX_NR_OIDS                                     16
-#define MAX_NR_SUBIDS                                   16
+#define MAX_NR_OIDS                                     20
+#define MAX_NR_SUBIDS                                   20
 #define MAX_NR_DISKS                                    64
 #define MAX_NR_INTERFACES                               64
-#define MAX_NR_VALUES                                   512
+#define MAX_NR_VALUES                                   2048
 
 #define MAX_PACKET_SIZE                                 2048
 #define MAX_STRING_SIZE                                 64
@@ -243,16 +243,22 @@ typedef struct netinfo_s {
 	long long status[MAX_NR_INTERFACES];
 	long long admin_status[MAX_NR_INTERFACES];
 	long long rx_bytes[MAX_NR_INTERFACES];
+	long long rx_mc_packets[MAX_NR_INTERFACES];
+	long long rx_bc_packets[MAX_NR_INTERFACES];
 	long long rx_packets[MAX_NR_INTERFACES];
 	long long rx_errors[MAX_NR_INTERFACES];
 	long long rx_drops[MAX_NR_INTERFACES];
 	long long tx_bytes[MAX_NR_INTERFACES];
+	long long tx_mc_packets[MAX_NR_INTERFACES];
+	long long tx_bc_packets[MAX_NR_INTERFACES];
 	long long tx_packets[MAX_NR_INTERFACES];
 	long long tx_errors[MAX_NR_INTERFACES];
 	long long tx_drops[MAX_NR_INTERFACES];
 	long long speed[MAX_NR_INTERFACES];
 	long long last_change[MAX_NR_INTERFACES];
 	long long mtu[MAX_NR_INTERFACES];
+	long long is_port[MAX_NR_INTERFACES];
+	long long discont_time[MAX_NR_INTERFACES];
 } netinfo_t;
 
 typedef struct tcpinfo_s {

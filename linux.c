@@ -292,6 +292,7 @@ void get_netinfo(netinfo_t *netinfo)
 						int ilink = 0;
 						int connected = 0;
 						int imtu = NDM_MIN_MTU_;
+						int is_port = 0;
 
 						while (node != NULL) {
 							if( !strcmp(ndm_xml_node_name(node), "id") &&
@@ -309,6 +310,7 @@ void get_netinfo(netinfo_t *netinfo)
 								imtu = NDM_ETH_MTU_;
 								admin_status = 1; // up
 								connected = 1; // connected
+								is_port = 1;
 							}
 
 							if( !strcmp(ndm_xml_node_name(node), "state") &&
@@ -342,11 +344,22 @@ void get_netinfo(netinfo_t *netinfo)
 							if( !strcmp(ndm_xml_node_name(node), "last-change") )
 							{
 								double timef = atof(ndm_xml_node_value(node));
-								long timel = timef * 100;
+								long long timel = timef * 100;
 
 								if( timel >= 0 && timel <= INT_MAX )
 								{
 									netinfo->last_change[i] = timel;
+								}
+							}
+
+							if( !strcmp(ndm_xml_node_name(node), "last-overflow") )
+							{
+								double timef = atof(ndm_xml_node_value(node));
+								long long timel = timef * 100;
+
+								if( timel >= 0 && timel <= INT_MAX )
+								{
+									netinfo->discont_time[i] = timel;
 								}
 							}
 
@@ -365,6 +378,7 @@ void get_netinfo(netinfo_t *netinfo)
 
 						netinfo->mtu[i] = imtu;
 						netinfo->admin_status[i] = admin_status;
+						netinfo->is_port[i] = is_port;
 
 						if( ilink == 1 && connected == 1 ) {
 							netinfo->status[i] = 1; // up
@@ -421,9 +435,30 @@ void get_netinfo(netinfo_t *netinfo)
 
 								if( rxp >= 0 )
 								{
-									netinfo->rx_packets[i] = rxp % UINT_MAX;
+									netinfo->rx_packets[i] = rxp;
 								}
 							}
+
+							if( !strcmp(ndm_xml_node_name(node), "rx-multicast-packets") )
+							{
+								long long rxmcp = atoll(ndm_xml_node_value(node));
+
+								if( rxmcp >= 0 )
+								{
+									netinfo->rx_mc_packets[i] = rxmcp;
+								}
+							}
+
+							if( !strcmp(ndm_xml_node_name(node), "rx-broadcast-packets") )
+							{
+								long long rxbcp = atoll(ndm_xml_node_value(node));
+
+								if( rxbcp >= 0 )
+								{
+									netinfo->rx_bc_packets[i] = rxbcp;
+								}
+							}
+
 
 							if( !strcmp(ndm_xml_node_name(node), "rxbytes") )
 							{
@@ -431,7 +466,7 @@ void get_netinfo(netinfo_t *netinfo)
 
 								if( rxb >= 0 )
 								{
-									netinfo->rx_bytes[i] = rxb % UINT_MAX;
+									netinfo->rx_bytes[i] = rxb;
 								}
 							}
 
@@ -441,7 +476,7 @@ void get_netinfo(netinfo_t *netinfo)
 
 								if( rxe >= 0 )
 								{
-									netinfo->rx_errors[i] = rxe % UINT_MAX;
+									netinfo->rx_errors[i] = rxe;
 								}
 							}
 
@@ -451,7 +486,7 @@ void get_netinfo(netinfo_t *netinfo)
 
 								if( rxd >= 0 )
 								{
-									netinfo->rx_drops[i] = rxd % UINT_MAX;
+									netinfo->rx_drops[i] = rxd;
 								}
 							}
 
@@ -461,7 +496,27 @@ void get_netinfo(netinfo_t *netinfo)
 
 								if( txp >= 0 )
 								{
-									netinfo->tx_packets[i] = txp % UINT_MAX;
+									netinfo->tx_packets[i] = txp;
+								}
+							}
+
+							if( !strcmp(ndm_xml_node_name(node), "tx-multicast-packets") )
+							{
+								long long txmcp = atoll(ndm_xml_node_value(node));
+
+								if( txmcp >= 0 )
+								{
+									netinfo->tx_mc_packets[i] = txmcp;
+								}
+							}
+
+							if( !strcmp(ndm_xml_node_name(node), "tx-broadcast-packets") )
+							{
+								long long txbcp = atoll(ndm_xml_node_value(node));
+
+								if( txbcp >= 0 )
+								{
+									netinfo->tx_bc_packets[i] = txbcp;
 								}
 							}
 
@@ -471,7 +526,7 @@ void get_netinfo(netinfo_t *netinfo)
 
 								if( txb >= 0 )
 								{
-									netinfo->tx_bytes[i] = txb % UINT_MAX;
+									netinfo->tx_bytes[i] = txb;
 								}
 							}
 
@@ -481,7 +536,7 @@ void get_netinfo(netinfo_t *netinfo)
 
 								if( txe >= 0 )
 								{
-									netinfo->tx_errors[i] = txe % UINT_MAX;
+									netinfo->tx_errors[i] = txe;
 								}
 							}
 
@@ -491,7 +546,7 @@ void get_netinfo(netinfo_t *netinfo)
 
 								if( txd >= 0 )
 								{
-									netinfo->tx_drops[i] = txd % UINT_MAX;
+									netinfo->tx_drops[i] = txd;
 								}
 							}
 
