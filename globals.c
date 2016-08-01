@@ -43,6 +43,7 @@ size_t    g_disk_list_length;
 
 char     *g_interface_list[MAX_NR_INTERFACES];
 #ifdef NDM
+char     *g_interface_name_list[MAX_NR_INTERFACES];
 size_t    g_interface_type[MAX_NR_INTERFACES];
 size_t    g_interface_mtu[MAX_NR_INTERFACES];
 char     *g_interface_mac[MAX_NR_INTERFACES];

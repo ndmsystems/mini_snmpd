@@ -304,6 +304,17 @@ void get_netinfo(netinfo_t *netinfo)
 								return;
 							}
 
+							if( !strcmp(ndm_xml_node_name(node), "interface-name") &&
+								strlen(ndm_xml_node_value(node)) > 0 )
+							{
+								if( g_interface_name_list[i] != NULL )
+								{
+									free(g_interface_name_list[i]);
+								}
+
+								g_interface_name_list[i] = strdup(ndm_xml_node_value(node));
+							}
+
 							if( !strcmp(ndm_xml_node_name(node), "type") &&
 								!strcmp(ndm_xml_node_value(node), "Port") )
 							{

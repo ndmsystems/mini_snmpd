@@ -614,6 +614,10 @@ int mib_build(void)
 	 */
 #ifdef NDM
 
+	for(i = 0; i < MAX_NR_INTERFACES; ++i) {
+		g_interface_name_list[i] = NULL;
+	}
+
 	g_interface_list_length = 1;
 	g_interface_list[NDM_LOOPBACK_INDEX_] = strdup(NDM_LOOPBACK_IFACE_);
 	g_interface_type[NDM_LOOPBACK_INDEX_] = 24; // softwareLoopback(24)
@@ -664,6 +668,18 @@ int mib_build(void)
 								int has_mac = 0;
 								size_t j = g_interface_list_length - 1;
 								g_interface_mtu[j] = NDM_MIN_MTU_;
+								const struct ndm_xml_attr_t* nameattr = 
+									ndm_xml_node_first_attr(node, "name");
+
+								if (nameattr != NULL &&
+									!strcmp(ndm_xml_attr_name(nameattr), "name") &&
+									strlen(ndm_xml_attr_value(nameattr)) > 0 )
+								{
+									g_interface_name_list[j] = strdup(ndm_xml_attr_value(nameattr));
+								} else
+								{
+									g_interface_name_list[j] = NULL;
+								}
 
 								while (cnode != NULL) {
 									if( !strcmp(ndm_xml_node_name(cnode), "id") )
@@ -1007,7 +1023,15 @@ int mib_build(void)
 
 		/* ifName */
 		for (i = 0; i < g_interface_list_length; i++) {
-			if (mib_build_entry(&m_if_ext_oid, 1, i + 1, BER_TYPE_OCTET_STRING, g_interface_list[i]) == -1)
+			const char *ifname = NULL;
+
+			if (g_interface_name_list[i] == NULL) {
+				ifname = g_interface_list[i];
+			} else {
+				ifname = g_interface_name_list[i];
+			}
+
+			if (mib_build_entry(&m_if_ext_oid, 1, i + 1, BER_TYPE_OCTET_STRING, ifname) == -1)
 				return -1;
 		}
 
@@ -1054,7 +1078,15 @@ int mib_build(void)
 
 		/* ifAlias */
 		for (i = 0; i < g_interface_list_length; i++) {
-			if (mib_build_entry(&m_if_ext_oid, 18, i + 1, BER_TYPE_OCTET_STRING, g_interface_list[i]) == -1)
+			const char *ifname = NULL;
+
+			if (g_interface_name_list[i] == NULL) {
+				ifname = g_interface_list[i];
+			} else {
+				ifname = g_interface_name_list[i];
+			}
+
+			if (mib_build_entry(&m_if_ext_oid, 18, i + 1, BER_TYPE_OCTET_STRING, ifname) == -1)
 				return -1;
 		}
 
@@ -1353,6 +1385,19 @@ int mib_update(int full)
 			uint64_t val = 0;
 
 			for (i = 0; i < g_interface_list_length; i++) {
+				const char *ifname = NULL;
+
+				if (g_interface_name_list[i] == NULL) {
+					ifname = g_interface_list[i];
+				} else {
+					ifname = g_interface_name_list[i];
+				}
+
+				if (mib_update_entry(&m_if_ext_oid, 1, i + 1, &pos, BER_TYPE_OCTET_STRING, ifname) == -1)
+					return -1;
+			}
+
+			for (i = 0; i < g_interface_list_length; i++) {
 				unsigned int packets = netinfo.rx_mc_packets[i] % UINT_MAX;
 				if (mib_update_entry(&m_if_ext_oid, 2, i + 1, &pos, BER_TYPE_COUNTER, (const void *)(uintptr_t)packets) == -1)
 					return -1;
@@ -1433,6 +1478,19 @@ int mib_update(int full)
 				int ifConnectorPresent = (netinfo.is_port[i] == 1 && netinfo.status[i] == 1) ? 1 : 2;
 
 				if (mib_update_entry(&m_if_ext_oid, 17, i + 1, &pos, BER_TYPE_INTEGER, (const void *)(intptr_t)ifConnectorPresent) == -1)
+					return -1;
+			}
+
+			for (i = 0; i < g_interface_list_length; i++) {
+				const char *ifname = NULL;
+
+				if (g_interface_name_list[i] == NULL) {
+					ifname = g_interface_list[i];
+				} else {
+					ifname = g_interface_name_list[i];
+				}
+
+				if (mib_update_entry(&m_if_ext_oid, 18, i + 1, &pos, BER_TYPE_OCTET_STRING, ifname) == -1)
 					return -1;
 			}
 
