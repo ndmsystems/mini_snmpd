@@ -19,6 +19,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <netinet/in.h>
+#include <pthread.h>
 
 #ifdef NDM
 #include <assert.h>
@@ -340,7 +341,9 @@ extern int       g_tcp_sockfd;
 
 extern value_t   g_mib[MAX_NR_VALUES];
 extern size_t    g_mib_length;
-
+extern pthread_mutex_t g_mib_mutex;
+extern pthread_mutex_t g_cond_mutex;
+extern pthread_cond_t g_update_cond;
 
 /*
  * Functions

@@ -298,6 +298,24 @@ static void handle_tcp_client_read(client_t *client)
 	client->outgoing = 1;
 }
 
+static void *mib_full_update_thread(void *arg)
+{
+	while (1) {
+		pthread_mutex_lock(&g_cond_mutex);
+		pthread_cond_wait(&g_update_cond, &g_cond_mutex);
+		pthread_mutex_unlock(&g_cond_mutex);
+
+		if (g_quit)
+			break;
+
+		if (mib_update(1) == -1) {
+			lprintf(LOG_ERR, "updating thread is unable to proceed");
+			break;
+		}
+	}
+
+	pthread_exit((void*) 0);
+}
 
 int main(int argc, char *argv[])
 {
@@ -354,6 +372,17 @@ int main(int argc, char *argv[])
 		struct sockaddr_in6 sa6;
 #endif
 	} sockaddr;
+	pthread_attr_t attr;
+	pthread_t updating_thread;
+	void * thread_status;
+
+	pthread_mutex_init(&g_mib_mutex, NULL);
+	pthread_mutex_init(&g_cond_mutex, NULL);
+
+	pthread_cond_init(&g_update_cond, NULL);
+
+	pthread_attr_init(&attr);
+	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
 
 	/* Prevent TERM and HUP signals from interrupting system calls */
 	sig.sa_handler = handle_signal;
@@ -489,6 +518,8 @@ int main(int argc, char *argv[])
 	dump_mib(g_mib, g_mib_length);
 #endif
 
+	pthread_create(&updating_thread, &attr, mib_full_update_thread, NULL);
+
 	/* Open the server's UDP port and prepare it for listening */
 	g_udp_sockfd = socket((g_family == AF_INET) ? PF_INET : PF_INET6, SOCK_DGRAM, 0);
 	if (g_udp_sockfd == -1) {
@@ -610,8 +641,9 @@ int main(int argc, char *argv[])
 			ticks = ticks_since(&tv_last, &tv_now);
 			if (ticks < 0 || ticks >= g_timeout) {
 				lprintf(LOG_DEBUG, "updating the MIB (full)\n");
-				if (mib_update(1) == -1)
-					exit(EXIT_SYSCALL);
+				pthread_mutex_lock(&g_cond_mutex);
+				pthread_cond_signal(&g_update_cond);
+				pthread_mutex_unlock(&g_cond_mutex);
 
 				memcpy(&tv_last, &tv_now, sizeof(tv_now));
 #ifndef NDM
@@ -673,8 +705,21 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	pthread_mutex_lock(&g_cond_mutex);
+	pthread_cond_signal(&g_update_cond);
+	pthread_mutex_unlock(&g_cond_mutex);
+
 	/* We were killed, print a message and exit */
 	lprintf(LOG_INFO, "stopped\n");
+
+	pthread_join(updating_thread, &thread_status);
+
+	pthread_attr_destroy(&attr);
+
+	pthread_mutex_destroy(&g_mib_mutex);
+	pthread_mutex_destroy(&g_cond_mutex);
+	pthread_cond_destroy(&g_update_cond);
+	pthread_exit(NULL);
 
 	return EXIT_OK;
 }

@@ -24,7 +24,7 @@
 const struct in_addr inaddr_any = { INADDR_ANY };
 
 int       g_family  = AF_INET;
-int       g_timeout = 250; // once a 2,5 seconds
+int       g_timeout = 33; // once a 0,33 seconds
 int       g_auth    = 0;
 int       g_daemon  = 1;
 int       g_syslog  = 0;
@@ -62,6 +62,9 @@ size_t    g_tcp_client_list_length = 0;
 
 value_t   g_mib[MAX_NR_VALUES];
 size_t    g_mib_length = 0;
+pthread_mutex_t g_mib_mutex;
+pthread_mutex_t g_cond_mutex;
+pthread_cond_t g_update_cond;
 
 #ifdef NDM
 struct ndm_core_t *g_ndmcore = NULL;
