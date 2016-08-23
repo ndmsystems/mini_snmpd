@@ -204,7 +204,7 @@ static int encode_unsigned(data_t *data, int type, unsigned int ticks_value)
 	int length;
 
 	buffer = data->buffer;
-	if (ticks_value & 0x7F800000)
+	if (ticks_value & 0xFF800000)
 		length = 4;
 	else if (ticks_value & 0x007F8000)
 		length = 3;
@@ -229,7 +229,7 @@ static int encode_unsigned64(data_t *data, int type, uint64_t ticks_value)
 	int length;
 
 	buffer = data->buffer;
-	if (ticks_value & 0x7F80000000000000ULL)
+	if (ticks_value & 0xFF80000000000000ULL)
 		length = 8;
 	else if (ticks_value & 0x007F800000000000ULL)
 		length = 7;
