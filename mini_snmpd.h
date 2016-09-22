@@ -20,7 +20,6 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <pthread.h>
-#include <signal.h>
 
 #ifdef NDM
 #include <assert.h>
@@ -309,7 +308,7 @@ extern int       g_auth;
 extern int       g_daemon;
 extern int       g_syslog;
 extern int       g_verbose;
-extern volatile sig_atomic_t g_quit;
+extern int       g_quit;
 
 extern char     *g_community;
 extern char     *g_description;
