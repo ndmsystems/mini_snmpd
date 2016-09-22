@@ -25,7 +25,6 @@
 #define SNMP_VERSION_1_ERROR(resp, code, index) {			\
 	(resp)->error_status = code;					\
 	(resp)->error_index  = index;					\
-	pthread_mutex_unlock(&g_mib_mutex);				\
 	return 0;							\
 }
 
@@ -35,7 +34,6 @@
 	       sizeof((req)->oid_list[index]));				\
 	memcpy(&(resp)->value_list[len].data, &err, sizeof(err));	\
 	(resp)->value_list_length++;					\
-	pthread_mutex_unlock(&g_mib_mutex);				\
 	continue;							\
 }
 
@@ -46,7 +44,6 @@
 	if ((resp)->value_list_length < MAX_NR_VALUES)			\
 		SNMP_VERSION_2_ERROR((resp), (req), (index), err); 	\
 									\
-	pthread_mutex_unlock(&g_mib_mutex);		\
 	lprintf(LOG_ERR, "%s", msg);					\
 	return -1;							\
 }
@@ -758,9 +755,6 @@ static int handle_snmp_get(request_t *request, response_t *response, client_t *U
 	 */
 	for (i = 0; i < request->oid_list_length; i++) {
 		pos = 0;
-
-		pthread_mutex_lock(&g_mib_mutex);
-
 		value = mib_find(&request->oid_list[i], &pos);
 		if (!value)
 			SNMP_GET_ERROR(response, request, i, SNMP_STATUS_NO_SUCH_NAME, m_no_such_object, msg);
@@ -777,12 +771,8 @@ static int handle_snmp_get(request_t *request, response_t *response, client_t *U
 		if (response->value_list_length < MAX_NR_VALUES) {
 			memcpy(&response->value_list[response->value_list_length], value, sizeof(*value));
 			response->value_list_length++;
-
-			pthread_mutex_unlock(&g_mib_mutex);
 			continue;
 		}
-
-		pthread_mutex_unlock(&g_mib_mutex);
 
 		lprintf(LOG_ERR, "%s", msg);
 		return -1;
@@ -803,8 +793,6 @@ static int handle_snmp_getnext(request_t *request, response_t *response, client_
 	 * subid of the requested one (table cell of table column)!
 	 */
 	for (i = 0; i < request->oid_list_length; i++) {
-		pthread_mutex_lock(&g_mib_mutex);
-
 		value = mib_findnext(&request->oid_list[i]);
 		if (!value)
 			SNMP_GET_ERROR(response, request, i, SNMP_STATUS_NO_SUCH_NAME, m_end_of_mib_view, msg);
@@ -812,11 +800,8 @@ static int handle_snmp_getnext(request_t *request, response_t *response, client_
 		if (response->value_list_length < MAX_NR_VALUES) {
 			memcpy(&response->value_list[response->value_list_length], value, sizeof(*value));
 			response->value_list_length++;
-			pthread_mutex_unlock(&g_mib_mutex);
 			continue;
 		}
-
-		pthread_mutex_unlock(&g_mib_mutex);
 
 		lprintf(LOG_ERR, "%s", msg);
 		return -1;
@@ -846,8 +831,6 @@ static int handle_snmp_getbulk(request_t *request, response_t *response, client_
 		if (i >= request->non_repeaters)
 			break;
 
-		pthread_mutex_lock(&g_mib_mutex);
-
 		value = mib_findnext(&oid_list[i]);
 		if (!value)
 			SNMP_GET_ERROR(response, request, i, SNMP_STATUS_NO_SUCH_NAME, m_end_of_mib_view, msg);
@@ -855,12 +838,8 @@ static int handle_snmp_getbulk(request_t *request, response_t *response, client_
 		if (response->value_list_length < MAX_NR_VALUES) {
 			memcpy(&response->value_list[response->value_list_length], value, sizeof(*value));
 			response->value_list_length++;
-
-			pthread_mutex_unlock(&g_mib_mutex);
 			continue;
 		}
-
-		pthread_mutex_unlock(&g_mib_mutex);
 
 		lprintf(LOG_ERR, "%s", msg);
 		return -1;
@@ -880,8 +859,6 @@ static int handle_snmp_getbulk(request_t *request, response_t *response, client_
 		int found_repeater = 0;
 
 		for (i = request->non_repeaters; i < request->oid_list_length; i++) {
-			pthread_mutex_lock(&g_mib_mutex);
-
 			value = mib_findnext(&oid_list[i]);
 			if (!value)
 				SNMP_GET_ERROR(response, request, i, SNMP_STATUS_NO_SUCH_NAME, m_end_of_mib_view, msg);
@@ -891,12 +868,8 @@ static int handle_snmp_getbulk(request_t *request, response_t *response, client_
 				response->value_list_length++;
 				memcpy(&oid_list[i], &value->oid, sizeof(value->oid));
 				found_repeater++;
-
-				pthread_mutex_unlock(&g_mib_mutex);
 				continue;
 			}
-
-			pthread_mutex_unlock(&g_mib_mutex);
 
 			lprintf(LOG_ERR, "%s", msg);
 			return -1;

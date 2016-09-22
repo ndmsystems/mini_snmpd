@@ -485,7 +485,6 @@ static int mib_update_entry(const oid_t *prefix, int column, int row, size_t *po
 	oid_t oid;
 	value_t *value;
 	const char *msg = "Failed updating OID";
-	int retval = 0;
 
 	memcpy(&oid, prefix, sizeof(oid));
 
@@ -495,19 +494,14 @@ static int mib_update_entry(const oid_t *prefix, int column, int row, size_t *po
 		return -1;
 	}
 
-	pthread_mutex_lock(&g_mib_mutex);
 	/* Search the MIB for the given OID beginning at the given position */
 	value = mib_find(&oid, pos);
 	if (!value) {
-		pthread_mutex_unlock(&g_mib_mutex);
 		lprintf(LOG_ERR, "%s '%s.%d.%d': OID not found\n", msg, oid_ntoa(prefix), column, row);
 		return -1;
 	}
 
-	retval = mib_data_set(prefix, &value->data, column, row, type, arg);
-	pthread_mutex_unlock(&g_mib_mutex);
-
-	return retval;
+	return mib_data_set(prefix, &value->data, column, row, type, arg);
 }
 
 
