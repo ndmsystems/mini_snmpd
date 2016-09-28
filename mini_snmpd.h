@@ -19,6 +19,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 
 #ifdef NDM
 #include <assert.h>
@@ -69,6 +70,7 @@
 #define BER_TYPE_NULL                                   0x05
 #define BER_TYPE_OID                                    0x06
 #define BER_TYPE_SEQUENCE                               0x30
+#define BER_TYPE_IP_ADDRESS                             0x40
 #define BER_TYPE_COUNTER                                0x41
 #define BER_TYPE_GAUGE                                  0x42
 #define BER_TYPE_TIME_TICKS                             0x43
@@ -261,6 +263,12 @@ typedef struct netinfo_s {
 	long long discont_time[MAX_NR_INTERFACES];
 } netinfo_t;
 
+typedef struct ipinfo_s {
+	long long ipForwarding;
+	long long ipDefaultTTL;
+	long long ipReasmTimeout;
+} ipinfo_t;
+
 typedef struct tcpinfo_s {
 	long long tcpRtoAlgorithm;
 	long long tcpRtoMin;
@@ -325,6 +333,8 @@ extern char     *g_interface_name_list[MAX_NR_INTERFACES];
 extern size_t    g_interface_type[MAX_NR_INTERFACES];
 extern size_t    g_interface_mtu[MAX_NR_INTERFACES];
 extern char     *g_interface_mac[MAX_NR_INTERFACES];
+extern int       g_interface_ip_address[MAX_NR_INTERFACES];
+extern int       g_interface_ip_mask[MAX_NR_INTERFACES];
 #endif
 extern size_t    g_interface_list_length;
 
@@ -374,6 +384,7 @@ unsigned int get_system_uptime  (void);
 void         get_loadinfo       (loadinfo_t *loadinfo);
 void         get_meminfo        (meminfo_t *meminfo);
 void         get_cpuinfo        (cpuinfo_t *cpuinfo);
+void         get_ipinfo         (ipinfo_t *ipinfo);
 void         get_tcpinfo        (tcpinfo_t *tcpinfo);
 void         get_udpinfo        (udpinfo_t *udpinfo);
 void         get_diskinfo       (diskinfo_t *diskinfo);

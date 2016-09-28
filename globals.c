@@ -47,6 +47,8 @@ char     *g_interface_name_list[MAX_NR_INTERFACES];
 size_t    g_interface_type[MAX_NR_INTERFACES];
 size_t    g_interface_mtu[MAX_NR_INTERFACES];
 char     *g_interface_mac[MAX_NR_INTERFACES];
+int       g_interface_ip_address[MAX_NR_INTERFACES];
+int       g_interface_ip_mask[MAX_NR_INTERFACES];
 #endif
 size_t    g_interface_list_length = 0;
 
