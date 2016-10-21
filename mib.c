@@ -152,6 +152,34 @@ static int encode_string(data_t *data, const char *string)
 	return 0;
 }
 
+static int encode_string_mac(data_t *data, const char *string)
+{
+	const size_t len = 6; // length of MAC
+	int ctr = len;
+	unsigned char *buffer;
+
+	if (!string)
+		return 2;
+
+	if ((len + 4) > data->max_length) {
+		data->max_length = len + 4;
+		data->buffer = realloc(data->buffer, data->max_length);
+		if (!data->buffer)
+			return 2;
+	}
+
+	buffer    = data->buffer;
+	*buffer++ = BER_TYPE_OCTET_STRING;
+	*buffer++ = len & 0x7F;
+
+	while (--ctr >= 0)
+		*buffer++ = (unsigned char)(*string++);
+
+	data->encoded_length = buffer - data->buffer;
+
+	return 0;
+}
+
 static int encode_oid(data_t *data, const oid_t *oid)
 {
 	size_t i, len = 1;
@@ -458,6 +486,12 @@ static int data_alloc(data_t *data, int type)
 			data->buffer = allocate(data->max_length);
 			break;
 
+		case BER_TYPE_OCTET_STRING_MAC:
+			data->max_length = 10;
+			data->encoded_length = 0;
+			data->buffer = allocate(data->max_length);
+			break;
+
 		case BER_TYPE_OID:
 			data->max_length = MAX_NR_SUBIDS * 5 + 4;
 			data->encoded_length = 0;
@@ -513,6 +547,9 @@ static int data_set(data_t *data, int type, const void *arg)
 
 		case BER_TYPE_OCTET_STRING:
 			return encode_string(data, (const char *)arg);
+
+		case BER_TYPE_OCTET_STRING_MAC:
+			return encode_string_mac(data, (const char *)arg);
 
 		case BER_TYPE_OID:
 			return encode_oid(data, oid_aton((const char *)arg));
@@ -967,7 +1004,7 @@ int mib_build(void)
 			lprintf(LOG_ERR, "too short mac address: %s", g_interface_mac[i]);
 		}
 
-		if (mib_build_entry(&m_if_2_oid, 6, i + 1, BER_TYPE_OCTET_STRING, mac) == -1)
+		if (mib_build_entry(&m_if_2_oid, 6, i + 1, BER_TYPE_OCTET_STRING_MAC, mac) == -1)
 			return -1;
 	}
 
@@ -1040,7 +1077,7 @@ int mib_build(void)
 		for (i = 0; i < g_interface_list_length; i++) {
 			unsigned char mac[] = { 0xc0, 0xff, 0xee, 0xde, 0xad, i + 1, 0x00 };
 
-			if (mib_build_entry(&m_if_2_oid, 6, i + 1, BER_TYPE_OCTET_STRING, mac) == -1)
+			if (mib_build_entry(&m_if_2_oid, 6, i + 1, BER_TYPE_OCTET_STRING_MAC, mac) == -1)
 				return -1;
 		}
 

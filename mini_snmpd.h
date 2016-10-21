@@ -67,6 +67,7 @@
 #define BER_TYPE_INTEGER                                0x02
 #define BER_TYPE_BIT_STRING                             0x03
 #define BER_TYPE_OCTET_STRING                           0x04
+#define BER_TYPE_OCTET_STRING_MAC                       0x04FF
 #define BER_TYPE_NULL                                   0x05
 #define BER_TYPE_OID                                    0x06
 #define BER_TYPE_SEQUENCE                               0x30
