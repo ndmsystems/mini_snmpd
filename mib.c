@@ -1130,10 +1130,10 @@ int mib_build(void)
 		for (i = 0; i < g_interface_list_length; ++i) {
 			if( g_interface_ip_address[i] != 0 &&
 				g_interface_ip_mask[i] != 0 ) {
-				unsigned int ip = htonl(g_interface_ip_address[i]);
+				uint32_t ip = g_interface_ip_address[i];
 
 				for (j = 0; j < 4; ++j) {
-					m_ip_adentryaddr_oid.subid_list[10 + j] = ((ip & (0xFF << (j * 8))) >> (j * 8));
+					m_ip_adentryaddr_oid.subid_list[10 + j] = ((ip & (0xFF << ((3 - j) * 8))) >> ((3 - j) * 8));
 				}
 
 				if (mib_build_ip_entry(&m_ip_adentryaddr_oid, BER_TYPE_IP_ADDRESS,
@@ -1146,10 +1146,10 @@ int mib_build(void)
 		for (i = 0; i < g_interface_list_length; ++i) {
 			if( g_interface_ip_address[i] != 0 &&
 				g_interface_ip_mask[i] != 0 ) {
-				unsigned int ip = htonl(g_interface_ip_address[i]);
+				uint32_t ip = g_interface_ip_address[i];
 
 				for (j = 0; j < 4; ++j) {
-					m_ip_adentryifidx_oid.subid_list[10 + j] = ((ip & (0xFF << (j * 8))) >> (j * 8));
+					m_ip_adentryifidx_oid.subid_list[10 + j] = ((ip & (0xFF << ((3 - j) * 8))) >> ((3 - j) * 8));
 				}
 
 				if (mib_build_ip_entry(&m_ip_adentryifidx_oid, BER_TYPE_INTEGER,
@@ -1162,10 +1162,10 @@ int mib_build(void)
 		for (i = 0; i < g_interface_list_length; ++i) {
 			if( g_interface_ip_address[i] != 0 &&
 				g_interface_ip_mask[i] != 0 ) {
-				unsigned int mask = htonl(g_interface_ip_address[i]);
+				uint32_t ip = g_interface_ip_address[i];
 
 				for (j = 0; j < 4; ++j) {
-					m_ip_adentrynetmask_oid.subid_list[10 + j] = ((mask & (0xFF << (j * 8))) >> (j * 8));
+					m_ip_adentrynetmask_oid.subid_list[10 + j] = ((ip & (0xFF << ((3 - j) * 8))) >> ((3 - j) * 8));
 				}
 
 				if (mib_build_ip_entry(&m_ip_adentrynetmask_oid, BER_TYPE_IP_ADDRESS,
@@ -1178,10 +1178,10 @@ int mib_build(void)
 		for (i = 0; i < g_interface_list_length; ++i) {
 			if( g_interface_ip_address[i] != 0 &&
 				g_interface_ip_mask[i] != 0 ) {
-				unsigned int ip = htonl(g_interface_ip_address[i]);
+				uint32_t ip = g_interface_ip_address[i];
 
 				for (j = 0; j < 4; ++j) {
-					m_ip_adentrybcaddr_oid.subid_list[10 + j] = ((ip & (0xFF << (j * 8))) >> (j * 8));
+					m_ip_adentrybcaddr_oid.subid_list[10 + j] = ((ip & (0xFF << ((3 - j) * 8))) >> ((3 - j) * 8));
 				}
 
 				if (mib_build_ip_entry(&m_ip_adentrybcaddr_oid, BER_TYPE_INTEGER,
