@@ -717,10 +717,14 @@ int mib_build(void)
 
 	for(i = 0; i < MAX_NR_INTERFACES; ++i) {
 		g_interface_name_list[i] = NULL;
+		g_interface_list[i] = NULL;
+		g_interface_descr_list[i] = NULL;
 	}
 
 	g_interface_list_length = 1;
 	g_interface_list[NDM_LOOPBACK_INDEX_] = strdup(NDM_LOOPBACK_IFACE_);
+	g_interface_name_list[NDM_LOOPBACK_INDEX_] = strdup("");
+	g_interface_descr_list[NDM_LOOPBACK_INDEX_] = strdup("");
 	g_interface_type[NDM_LOOPBACK_INDEX_] = 24; // softwareLoopback(24)
 	g_interface_mtu[NDM_LOOPBACK_INDEX_] = NDM_LOOPBACK_MTU_;
 	g_interface_mac[NDM_LOOPBACK_INDEX_] = strdup(NDM_EMPTY_MAC_);
@@ -790,6 +794,12 @@ int mib_build(void)
 									if( !strcmp(ndm_xml_node_name(cnode), "id") )
 									{
 										g_interface_list[j] =
+											strdup(ndm_xml_node_value(cnode));
+									}
+
+									if( !strcmp(ndm_xml_node_name(cnode), "description") )
+									{
+										g_interface_descr_list[j] =
 											strdup(ndm_xml_node_value(cnode));
 									}
 
@@ -917,6 +927,14 @@ int mib_build(void)
 		lprintf(LOG_ERR, "unable to acquire any interface");
 
 		return -1;
+	}
+
+	for (i = 0; i < g_interface_list_length; ++i) {
+		if (g_interface_list[i] == NULL) {
+			lprintf(LOG_ERR, "unable to acquire interface %d", i);
+
+			return -1;
+		}
 	}
 
 	lprintf(LOG_INFO, "build IF-MIB for %d interfaces", g_interface_list_length);
@@ -1244,7 +1262,7 @@ int mib_build(void)
 		for (i = 0; i < g_interface_list_length; i++) {
 			const char *ifname = NULL;
 
-			if (g_interface_name_list[i] == NULL) {
+			if (g_interface_name_list[i] == NULL || !strcmp(g_interface_name_list[i], "")) {
 				ifname = g_interface_list[i];
 			} else {
 				ifname = g_interface_name_list[i];
@@ -1299,10 +1317,14 @@ int mib_build(void)
 		for (i = 0; i < g_interface_list_length; i++) {
 			const char *ifname = NULL;
 
-			if (g_interface_name_list[i] == NULL) {
-				ifname = g_interface_list[i];
+			if (g_interface_descr_list[i] == NULL || !strcmp(g_interface_descr_list[i], "")) {
+				if (g_interface_name_list[i] == NULL || !strcmp(g_interface_name_list[i], "")) {
+					ifname = g_interface_list[i];
+				} else {
+					ifname = g_interface_name_list[i];
+				}
 			} else {
-				ifname = g_interface_name_list[i];
+				ifname = g_interface_descr_list[i];
 			}
 
 			if (mib_build_entry(&m_if_ext_oid, 18, i + 1, BER_TYPE_OCTET_STRING, ifname) == -1)
@@ -1623,7 +1645,7 @@ int mib_update(int full)
 			for (i = 0; i < g_interface_list_length; i++) {
 				const char *ifname = NULL;
 
-				if (g_interface_name_list[i] == NULL) {
+				if (g_interface_name_list[i] == NULL || !strcmp(g_interface_name_list[i], "")) {
 					ifname = g_interface_list[i];
 				} else {
 					ifname = g_interface_name_list[i];
@@ -1720,10 +1742,14 @@ int mib_update(int full)
 			for (i = 0; i < g_interface_list_length; i++) {
 				const char *ifname = NULL;
 
-				if (g_interface_name_list[i] == NULL) {
-					ifname = g_interface_list[i];
+				if (g_interface_descr_list[i] == NULL || !strcmp(g_interface_descr_list[i], "")) {
+					if (g_interface_name_list[i] == NULL || !strcmp(g_interface_name_list[i], "")) {
+						ifname = g_interface_list[i];
+					} else {
+						ifname = g_interface_name_list[i];
+					}
 				} else {
-					ifname = g_interface_name_list[i];
+					ifname = g_interface_descr_list[i];
 				}
 
 				if (mib_update_entry(&m_if_ext_oid, 18, i + 1, &pos, BER_TYPE_OCTET_STRING, ifname) == -1)
