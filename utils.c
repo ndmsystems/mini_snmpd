@@ -288,6 +288,9 @@ oid_t *oid_aton(const char *str)
 	static oid_t oid;
 	char *ptr = (char *)str;
 
+	if (str == NULL)
+		return NULL;
+
 	oid.subid_list_length = 0;
 	while (*ptr != 0) {
 		if (oid.subid_list_length >= MAX_NR_SUBIDS)
