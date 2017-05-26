@@ -289,14 +289,14 @@ void get_netinfo(netinfo_t *netinfo)
 			lprintf(LOG_ERR, "(%s:%d) ndm request failed: %s", __FILE__, __LINE__, strerror(errno));
 			ndm_core_response_free(&g_ndmresp);
 
-			return;
+			exit(EXIT_SYSCALL);
 		}
 
 		if (!ndm_core_response_is_ok(g_ndmresp)) {
 			lprintf(LOG_ERR, "(%s:%d) ndm response is invalid", __FILE__, __LINE__);
 			ndm_core_response_free(&g_ndmresp);
 
-			return;
+			exit(EXIT_SYSCALL);
 		} else
 		{
 			const struct ndm_xml_node_t* root = ndm_core_response_root(g_ndmresp);
@@ -305,7 +305,7 @@ void get_netinfo(netinfo_t *netinfo)
 				lprintf(LOG_ERR, "(%s:%d) null ndm response", __FILE__, __LINE__);
 				ndm_core_response_free(&g_ndmresp);
 
-				return;
+				exit(EXIT_SYSCALL);
 			} else {
 				if( ndm_xml_node_type(root) == NDM_XML_NODE_TYPE_ELEMENT )
 				{
@@ -326,7 +326,7 @@ void get_netinfo(netinfo_t *netinfo)
 								lprintf(LOG_ERR, "(%s:%d) invalid interface returned", __FILE__, __LINE__);
 								ndm_core_response_free(&g_ndmresp);
 
-								return;
+								exit(EXIT_SYSCALL);
 							}
 
 							if( !strcmp(ndm_xml_node_name(node), "interface-name") &&
@@ -438,14 +438,14 @@ void get_netinfo(netinfo_t *netinfo)
 			lprintf(LOG_ERR, "(%s:%d) ndm request failed: %s", __FILE__, __LINE__, strerror(errno));
 			ndm_core_response_free(&g_ndmresp);
 
-			return;
+			exit(EXIT_SYSCALL);
 		}
 
 		if (!ndm_core_response_is_ok(g_ndmresp)) {
 			lprintf(LOG_ERR, "(%s:%d) ndm response is invalid", __FILE__, __LINE__);
 			ndm_core_response_free(&g_ndmresp);
 
-			return;
+			exit(EXIT_SYSCALL);
 		} else
 		{
 			const struct ndm_xml_node_t* root = ndm_core_response_root(g_ndmresp);
@@ -454,7 +454,7 @@ void get_netinfo(netinfo_t *netinfo)
 				lprintf(LOG_ERR, "(%s:%d) null ndm response", __FILE__, __LINE__);
 				ndm_core_response_free(&g_ndmresp);
 
-				return;
+				exit(EXIT_SYSCALL);
 			} else {
 				if( ndm_xml_node_type(root) == NDM_XML_NODE_TYPE_ELEMENT )
 				{

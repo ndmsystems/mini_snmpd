@@ -645,13 +645,13 @@ int mib_build(void)
 	{
 		lprintf(LOG_ERR, "(%s:%d) ndm request failed: %s", __FILE__, __LINE__, strerror(errno));
 
-		return -1;
+		exit(EXIT_SYSCALL);
 	}
 
 	if (!ndm_core_response_is_ok(g_ndmresp)) {
 		lprintf(LOG_ERR, "(%s:%d) ndm response is invalid", __FILE__, __LINE__);
 
-		return -1;
+		exit(EXIT_SYSCALL);
 	} else
 	{
 		const struct ndm_xml_node_t* root = ndm_core_response_root(g_ndmresp);
@@ -659,6 +659,7 @@ int mib_build(void)
 		if (root == NULL) {
 			lprintf(LOG_ERR, "(%s:%d) null ndm response", __FILE__, __LINE__);
 
+			exit(EXIT_SYSCALL);
 		} else {
 			if( ndm_xml_node_type(root) == NDM_XML_NODE_TYPE_ELEMENT )
 			{
@@ -738,14 +739,14 @@ int mib_build(void)
 		lprintf(LOG_ERR, "(%s:%d) ndm request failed: %s", __FILE__, __LINE__, strerror(errno));
 		ndm_core_response_free(&g_ndmresp);
 
-		return -1;
+		exit(EXIT_SYSCALL);
 	}
 
 	if (!ndm_core_response_is_ok(g_ndmresp)) {
 		lprintf(LOG_ERR, "(%s:%d) ndm response is invalid", __FILE__, __LINE__);
 		ndm_core_response_free(&g_ndmresp);
 
-		return -1;
+		exit(EXIT_SYSCALL);
 	} else
 	{
 		const struct ndm_xml_node_t* root = ndm_core_response_root(g_ndmresp);
@@ -754,7 +755,7 @@ int mib_build(void)
 			lprintf(LOG_ERR, "(%s:%d) null ndm response", __FILE__, __LINE__);
 			ndm_core_response_free(&g_ndmresp);
 
-			return -1;
+			exit(EXIT_SYSCALL);
 		} else {
 			if( ndm_xml_node_type(root) == NDM_XML_NODE_TYPE_ELEMENT )
 			{
