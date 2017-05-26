@@ -15,6 +15,7 @@
 
 #define _GNU_SOURCE
 
+#include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -30,6 +31,8 @@
 #include <stdio.h>
 #include <errno.h>
 #include <time.h>
+#include <pwd.h>
+#include <grp.h>
 
 #include "mini_snmpd.h"
 
@@ -51,6 +54,9 @@ void ndm_atexit_core_close_(struct ndm_core_t* core)
 		ndm_core_close(&core_);
 	}
 }
+
+#define NDM_USER_ "nobody"
+
 #endif
 
 static void print_help(void)
@@ -576,6 +582,46 @@ int main(int argc, char *argv[])
 			g_udp_port, g_tcp_port, g_bind_to_device);
 	} else {
 		lprintf(LOG_INFO, "Listening on port %d/udp and %d/tcp\n", g_udp_port, g_tcp_port);
+	}
+
+	if (geteuid() == 0) {
+		struct group *grp;
+		struct passwd *pwd;
+
+		errno = 0;
+
+		pwd = getpwnam(NDM_USER_);
+
+		if (pwd == NULL) {
+			lprintf(LOG_ERR, "Unable to get UID for user \"%s\": %s",
+				NDM_USER_, strerror(errno));
+			exit(EXIT_SYSCALL);
+		}
+
+		errno = 0;
+
+		grp = getgrnam(NDM_USER_);
+
+		if (grp == NULL) {
+			lprintf(LOG_ERR, "Unable to get GID for group \"%s\": %s",
+				NDM_USER_, strerror(errno));
+			exit(EXIT_SYSCALL);
+		}
+
+		if (setgid(grp->gr_gid) == -1) {
+			lprintf(LOG_ERR, "Unable to set new group \"%s\": %s",
+				NDM_USER_, strerror(errno));
+			exit(EXIT_SYSCALL);
+		}
+
+		if (setuid(pwd->pw_uid) == -1) {
+			lprintf(LOG_ERR, "Unable to set new user \"%s\": %s",
+				NDM_USER_, strerror(errno));
+			exit(EXIT_SYSCALL);
+		}
+
+		lprintf(LOG_INFO, "Successfully dropped privileges to %s:%s",
+			NDM_USER_, NDM_USER_);
 	}
 
 	/* Handle incoming connect requests and incoming data */
