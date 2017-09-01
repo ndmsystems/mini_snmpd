@@ -937,13 +937,13 @@ int mib_build(void)
 
 	for (i = 0; i < g_interface_list_length; ++i) {
 		if (g_interface_list[i] == NULL) {
-			lprintf(LOG_ERR, "unable to acquire interface %d", i);
+			lprintf(LOG_ERR, "unable to acquire interface %u", i);
 
 			return -1;
 		}
 	}
 
-	lprintf(LOG_INFO, "build IF-MIB for %d interfaces", g_interface_list_length);
+	lprintf(LOG_INFO, "build IF-MIB for %u interfaces", g_interface_list_length);
 
 	if (mib_build_entry(&m_if_1_oid, 1, 0, BER_TYPE_INTEGER, (const void *)(intptr_t)g_interface_list_length) == -1)
 		return -1;
@@ -1398,7 +1398,7 @@ int mib_build(void)
 
 	if (g_disk_list_length > 0) {
 
-		lprintf(LOG_INFO, "build UCD-SNMP-MIB for %d disks", g_disk_list_length);
+		lprintf(LOG_INFO, "build UCD-SNMP-MIB for %u disks", g_disk_list_length);
 
 		for (i = 0; i < g_disk_list_length; i++) {
 			if (mib_build_entry(&m_disk_oid, 1, i + 1, BER_TYPE_INTEGER, (const void *)(intptr_t)(i + 1)) == -1)
@@ -1470,7 +1470,6 @@ int mib_build(void)
 
 int mib_update(int full)
 {
-	char nr[16];
 	size_t i, pos;
 	union {
 		diskinfo_t diskinfo;
@@ -1822,9 +1821,11 @@ int mib_update(int full)
 	 * Caution: on changes, adapt the corresponding mib_build() section too!
 	 */
 	if (full) {
+		char nr[16];
+
 		get_loadinfo(&u.loadinfo);
 		for (i = 0; i < 3; i++) {
-			snprintf(nr, sizeof(nr), "%d.%02d", u.loadinfo.avg[i] / 100, u.loadinfo.avg[i] % 100);
+			snprintf(nr, sizeof(nr), "%u.%02u", u.loadinfo.avg[i] / 100, u.loadinfo.avg[i] % 100);
 			if (mib_update_entry(&m_load_oid, 3, i + 1, &pos, BER_TYPE_OCTET_STRING, nr) == -1)
 				return -1;
 		}

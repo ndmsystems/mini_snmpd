@@ -345,7 +345,7 @@ int main(int argc, char *argv[])
 		{ "help", 0, 0, 'h' },
 		{ NULL, 0, 0, 0 }
 	};
-	int ticks, nfds, c, option_index = 1;
+	int ticks, c, option_index = 1;
 	size_t i;
 	fd_set rfds, wfds;
 	struct sigaction sig;
@@ -626,6 +626,8 @@ int main(int argc, char *argv[])
 
 	/* Handle incoming connect requests and incoming data */
 	while (!g_quit) {
+		int nfds;
+
 		/* Sleep until we get a request or the timeout is over */
 		FD_ZERO(&rfds);
 		FD_ZERO(&wfds);

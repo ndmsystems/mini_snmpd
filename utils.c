@@ -99,7 +99,7 @@ int parse_file(char *file, field_t fields[], size_t limit, size_t skip_prefix)
 	while (fgets(buf, sizeof(buf), fp)) {
 		int i;
 
-		for (i = 0; fields[i].prefix && i < limit; i++) {
+		for (i = 0; i < limit && fields[i].prefix; i++) {
 			if (parse_lineint(buf, &fields[i], &skip_prefix))
 				break;
 		}
@@ -130,49 +130,6 @@ int read_file(const char *filename, char *buf, size_t size)
 	buf[len] = '\0';
 
 	return 0;
-}
-
-unsigned int read_value(const char *buf, const char *prefix)
-{
-	buf = strstr(buf, prefix);
-	if (!buf)
-		return 0;
-
-	buf += strlen(prefix);
-	if (*buf == ':')
-		buf++;
-
-	while (isspace(*buf))
-		buf++;
-
-	return (*buf != 0) ? strtoul(buf, NULL, 0) : 0;
-}
-
-void read_values(const char *buf, const char *prefix, unsigned int *values, int count)
-{
-	int i;
-
-	buf = strstr(buf, prefix);
-	if (!buf) {
-		memset(values, 0, count * sizeof(unsigned int));
-		return;
-	}
-
-	buf += strlen(prefix);
-	if (*buf == ':')
-		buf++;
-
-	for (i = 0; i < count; i++) {
-		while (isspace(*buf))
-			buf++;
-
-		if (*buf == 0) {
-			values[i] = 0;
-			continue;
-		}
-
-		values[i] = strtoul(buf, (char **)&buf, 0);
-	}
 }
 
 int ticks_since(const struct timeval *tv_last, struct timeval *tv_now)
@@ -220,7 +177,7 @@ void dump_packet(const client_t *client)
 	}
 
 	inet_ntop(my_af_inet, &client_addr, straddr, sizeof(straddr));
-	lprintf(LOG_DEBUG, "%s %u bytes %s %s:%d (%s)\n",
+	lprintf(LOG_DEBUG, "%s %d bytes %s %s:%d (%s)\n",
 		client->outgoing ? "transmitted" : "received", (int) client->size,
 		client->outgoing ? "to" : "from", straddr,
 		ntohs(client->port), buf);
@@ -314,10 +271,11 @@ oid_t *oid_aton(const char *str)
 
 int oid_cmp(const oid_t *oid1, const oid_t *oid2)
 {
-	int subid1, subid2;
 	size_t i;
 
 	for (i = 0; i < MAX_NR_OIDS; i++) {
+		int subid1, subid2;
+
 		subid1 = (oid1->subid_list_length > i) ? (int)oid1->subid_list[i] : -1;
 		subid2 = (oid2->subid_list_length > i) ? (int)oid2->subid_list[i] : -1;
 

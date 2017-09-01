@@ -56,8 +56,6 @@ static const data_t m_end_of_mib_view   = { (unsigned char *)"\x82\x00", 2, 2 };
 
 static int decode_len(const unsigned char *packet, size_t size, size_t *pos, int *type, size_t *len)
 {
-	size_t length_of_len;
-
 	if (*pos >= size) {
 		lprintf(LOG_DEBUG, "underflow for element type\n");
 		errno = EINVAL;
@@ -107,7 +105,7 @@ static int decode_len(const unsigned char *packet, size_t size, size_t *pos, int
 		*len = packet[*pos];
 		*pos = *pos + 1;
 	} else {
-		length_of_len = packet[*pos] & 0x7F;
+		size_t length_of_len = packet[*pos] & 0x7F;
 		if (length_of_len > 2) {
 			lprintf(LOG_DEBUG, "overflow for element length\n");
 			errno = EINVAL;
@@ -745,7 +743,6 @@ static int encode_snmp_response(request_t *request, response_t *response, client
 static int handle_snmp_get(request_t *request, response_t *response, client_t *UNUSED(client))
 {
 	size_t i, pos;
-	value_t *value;
 	const char *msg = "Failed handling SNMP GET: value list overflow\n";
 
 	/*
@@ -754,6 +751,8 @@ static int handle_snmp_get(request_t *request, response_t *response, client_t *U
 	 * subid of the requested one (table cell of table column)!
 	 */
 	for (i = 0; i < request->oid_list_length; i++) {
+		value_t *value;
+
 		pos = 0;
 		value = mib_find(&request->oid_list[i], &pos);
 		if (!value)
@@ -784,7 +783,6 @@ static int handle_snmp_get(request_t *request, response_t *response, client_t *U
 static int handle_snmp_getnext(request_t *request, response_t *response, client_t *UNUSED(client))
 {
 	size_t i;
-	value_t *value;
 	const char *msg = "Failed handling SNMP GETNEXT: value list overflow\n";
 
 	/*
@@ -793,7 +791,7 @@ static int handle_snmp_getnext(request_t *request, response_t *response, client_
 	 * subid of the requested one (table cell of table column)!
 	 */
 	for (i = 0; i < request->oid_list_length; i++) {
-		value = mib_findnext(&request->oid_list[i]);
+		value_t *value = mib_findnext(&request->oid_list[i]);
 		if (!value)
 			SNMP_GET_ERROR(response, request, i, SNMP_STATUS_NO_SUCH_NAME, m_end_of_mib_view, msg);
 
