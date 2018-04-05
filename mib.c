@@ -266,6 +266,12 @@ static int encode_unsigned(data_t *data, int type, unsigned int ticks_value)
 
 	*buffer++ = type;
 	*buffer++ = length;
+
+	if (length == 5) {
+		length--;
+		*buffer++ = 0;
+	}
+
 	while (length--)
 		*buffer++ = (ticks_value >> (8 * length)) & 0xFF;
 
@@ -297,8 +303,19 @@ static int encode_unsigned64(data_t *data, int type, uint64_t ticks_value)
 	else
 		length = 1;
 
+	/* check if the integer could be interpreted negative during a signed decode and prepend a zero-byte if necessary */
+	if ((ticks_value >> (8 * (length - 1))) & 0x80) {
+		length++;
+	}
+
 	*buffer++ = type;
 	*buffer++ = length;
+
+	if (length == 9) {
+		length--;
+		*buffer++ = 0;
+	}
+
 	while (length--)
 		*buffer++ = (ticks_value >> (8 * length)) & 0xFF;
 
@@ -504,7 +521,7 @@ static int data_alloc(data_t *data, int type)
 			break;
 
 		case BER_TYPE_COUNTER64:
-			data->max_length = sizeof(uint64_t) + 2;
+			data->max_length = sizeof(uint64_t) + 3;
 			data->encoded_length = 0;
 			data->buffer = allocate(data->max_length);
 			break;
@@ -577,6 +594,9 @@ static int data_set(data_t *data, int type, const void *arg)
 static int mib_build_entries(const oid_t *prefix, int column, int row_from, int row_to, int type)
 {
 	int row;
+
+	if (row_from > row_to)
+		return 0;
 
 	for (row = row_from; row <= row_to; row++) {
 		if (!mib_alloc_entry(prefix, column, row, type))
