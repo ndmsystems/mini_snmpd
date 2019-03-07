@@ -284,7 +284,7 @@ void get_netinfo(netinfo_t *netinfo)
 
 		if ((g_ndmresp = ndm_core_request(g_ndmcore,
 				NDM_CORE_REQUEST_PARSE, NDM_CORE_MODE_CACHE, NULL,
-				request)) == NULL)
+				"%s", request)) == NULL)
 		{
 			lprintf(LOG_ERR, "(%s:%d) ndm request failed: %s", __FILE__, __LINE__, strerror(errno));
 			ndm_core_response_free(&g_ndmresp);
@@ -433,7 +433,7 @@ void get_netinfo(netinfo_t *netinfo)
 
 		if ((g_ndmresp = ndm_core_request(g_ndmcore,
 				NDM_CORE_REQUEST_PARSE, NDM_CORE_MODE_CACHE, NULL,
-				request)) == NULL)
+				"%s", request)) == NULL)
 		{
 			lprintf(LOG_ERR, "(%s:%d) ndm request failed: %s", __FILE__, __LINE__, strerror(errno));
 			ndm_core_response_free(&g_ndmresp);
