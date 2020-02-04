@@ -630,6 +630,37 @@ static int mib_update_entry(const oid_t *prefix, int column, int row, size_t *po
 	return mib_data_set(prefix, &value->data, column, row, type, arg);
 }
 
+struct in_sort {
+	int pos;
+	uint32_t addr;
+} sorted_interface_list[MAX_NR_INTERFACES];
+static size_t sorted_interface_list_size = 0;
+
+int in_cmp(const void *p1, const void *p2)
+{
+	struct in_sort *a = (struct in_sort *)p1;
+	struct in_sort *b = (struct in_sort *)p2;
+
+	return (int)(a->addr - b->addr);
+}
+
+static void sort_addrs(void)
+{
+	size_t i, ctr = 0;
+
+	for (i = 0; i < g_interface_list_length; i++) {
+		if(g_interface_ip_address[i] == 0 || g_interface_ip_mask[i] == 0)
+			continue;
+
+		sorted_interface_list[ctr].pos  = i;
+		sorted_interface_list[ctr].addr = g_interface_ip_address[i];
+		ctr++;
+	}
+
+	sorted_interface_list_size = ctr;
+
+	qsort(sorted_interface_list, ctr, sizeof(struct in_sort), in_cmp);
+}
 
 /* -----------------------------------------------------------------------------
  * Interface functions
@@ -1159,6 +1190,8 @@ int mib_build(void)
 	 * The IP-MIB.
 	 */
 
+	sort_addrs();
+
 	if (!mib_alloc_entry(&m_ip_oid,  1, 0, BER_TYPE_INTEGER)   ||
 	    !mib_alloc_entry(&m_ip_oid,  2, 0, BER_TYPE_INTEGER)   ||
 	    !mib_alloc_entry(&m_ip_oid, 13, 0, BER_TYPE_INTEGER) )
@@ -1171,70 +1204,53 @@ int mib_build(void)
 		oid_t m_ip_adentrynetmask_oid = { { 1, 3, 6, 1, 2, 1, 4, 20, 1, 3, 0, 0, 0, 0 },  14, 15  };
 		oid_t m_ip_adentrybcaddr_oid  = { { 1, 3, 6, 1, 2, 1, 4, 20, 1, 4, 0, 0, 0, 0 },  14, 15  };
 
-		for (i = 0; i < g_interface_list_length; ++i) {
-			if( g_interface_ip_address[i] != 0 &&
-				g_interface_ip_mask[i] != 0 ) {
-				uint32_t ip = g_interface_ip_address[i];
+		for (i = 0; i < sorted_interface_list_size; ++i) {
+			const uint32_t ip = sorted_interface_list[i].addr;
 
-				for (j = 0; j < 4; ++j) {
-					m_ip_adentryaddr_oid.subid_list[10 + j] = ((ip & (0xFF << ((3 - j) * 8))) >> ((3 - j) * 8));
-				}
+			for (j = 0; j < 4; ++j) 
+				m_ip_adentryaddr_oid.subid_list[10 + j] = ((ip & (0xFF << ((3 - j) * 8))) >> ((3 - j) * 8));
 
-				if (mib_build_ip_entry(&m_ip_adentryaddr_oid, BER_TYPE_IP_ADDRESS,
-					(const void *)(intptr_t)(g_interface_ip_address[i])) == -1) {
-					return -1;
-				}
+			if (mib_build_ip_entry(&m_ip_adentryaddr_oid, BER_TYPE_IP_ADDRESS,
+				(const void *)(intptr_t)(g_interface_ip_address[sorted_interface_list[i].pos])) == -1) {
+				return -1;
 			}
 		}
 
-		for (i = 0; i < g_interface_list_length; ++i) {
-			if( g_interface_ip_address[i] != 0 &&
-				g_interface_ip_mask[i] != 0 ) {
-				uint32_t ip = g_interface_ip_address[i];
+		for (i = 0; i < sorted_interface_list_size; ++i) {
+			const uint32_t ip = sorted_interface_list[i].addr;
 
-				for (j = 0; j < 4; ++j) {
-					m_ip_adentryifidx_oid.subid_list[10 + j] = ((ip & (0xFF << ((3 - j) * 8))) >> ((3 - j) * 8));
-				}
+			for (j = 0; j < 4; ++j)
+				m_ip_adentryifidx_oid.subid_list[10 + j] = ((ip & (0xFF << ((3 - j) * 8))) >> ((3 - j) * 8));
 
-				if (mib_build_ip_entry(&m_ip_adentryifidx_oid, BER_TYPE_INTEGER,
-					(const void *)(intptr_t)(i)) == -1) {
-					return -1;
-				}
+			if (mib_build_ip_entry(&m_ip_adentryifidx_oid, BER_TYPE_INTEGER,
+				(const void *)(intptr_t)(sorted_interface_list[i].pos)) == -1) {
+				return -1;
 			}
 		}
 
-		for (i = 0; i < g_interface_list_length; ++i) {
-			if( g_interface_ip_address[i] != 0 &&
-				g_interface_ip_mask[i] != 0 ) {
-				uint32_t ip = g_interface_ip_address[i];
+		for (i = 0; i < sorted_interface_list_size; ++i) {
+			const uint32_t ip = sorted_interface_list[i].addr;
 
-				for (j = 0; j < 4; ++j) {
-					m_ip_adentrynetmask_oid.subid_list[10 + j] = ((ip & (0xFF << ((3 - j) * 8))) >> ((3 - j) * 8));
-				}
+			for (j = 0; j < 4; ++j)
+				m_ip_adentrynetmask_oid.subid_list[10 + j] = ((ip & (0xFF << ((3 - j) * 8))) >> ((3 - j) * 8));
 
-				if (mib_build_ip_entry(&m_ip_adentrynetmask_oid, BER_TYPE_IP_ADDRESS,
-					(const void *)(intptr_t)(g_interface_ip_mask[i])) == -1) {
-					return -1;
-				}
+			if (mib_build_ip_entry(&m_ip_adentrynetmask_oid, BER_TYPE_IP_ADDRESS,
+				(const void *)(intptr_t)(g_interface_ip_mask[sorted_interface_list[i].pos])) == -1) {
+				return -1;
 			}
 		}
 
-		for (i = 0; i < g_interface_list_length; ++i) {
-			if( g_interface_ip_address[i] != 0 &&
-				g_interface_ip_mask[i] != 0 ) {
-				uint32_t ip = g_interface_ip_address[i];
+		for (i = 0; i < sorted_interface_list_size; ++i) {
+			const uint32_t ip = sorted_interface_list[i].addr;
 
-				for (j = 0; j < 4; ++j) {
-					m_ip_adentrybcaddr_oid.subid_list[10 + j] = ((ip & (0xFF << ((3 - j) * 8))) >> ((3 - j) * 8));
-				}
+			for (j = 0; j < 4; ++j)
+				m_ip_adentrybcaddr_oid.subid_list[10 + j] = ((ip & (0xFF << ((3 - j) * 8))) >> ((3 - j) * 8));
 
-				if (mib_build_ip_entry(&m_ip_adentrybcaddr_oid, BER_TYPE_INTEGER,
-					(const void *)(intptr_t)(1)) == -1) {
-					return -1;
-				}
+			if (mib_build_ip_entry(&m_ip_adentrybcaddr_oid, BER_TYPE_INTEGER,
+				(const void *)(intptr_t)(1)) == -1) {
+				return -1;
 			}
 		}
-
 	}
 
 	/*
